@@ -21,7 +21,7 @@ lint_off -msg DECLFILENAME -file "*/rtl/ibex_register_file_fpga.sv"
 
 // Bits of signal are not used: fetch_addr_n[0]
 // cleaner to write all bits even if not all are used
-lint_off -msg UNUSED -file "*/rtl/ibex_if_stage.sv" -lines 85
+lint_off -msg UNUSED -file "*/rtl/ibex_if_stage.sv" -lines 84
 
 // Bits of signal are not used: shift_right_result_ext[32]
 // cleaner to write all bits even if not all are used
@@ -33,11 +33,11 @@ lint_off -msg UNUSED -file "*/rtl/ibex_multdiv_fast.sv" -lines 28
 
 // Bits of signal are not used: mac_res_ext[34]
 // cleaner to write all bits even if not all are used
-lint_off -msg UNUSED -file "*/rtl/ibex_multdiv_fast.sv" -lines 43
+lint_off -msg UNUSED -file "*/rtl/ibex_multdiv_fast.sv" -lines 45
 
 // Bits of signal are not used: res_adder_h[32]
 // cleaner to write all bits even if not all are used
-lint_off -msg UNUSED -file "*/rtl/ibex_multdiv_fast.sv" -lines 69
+lint_off -msg UNUSED -file "*/rtl/ibex_multdiv_fast.sv" -lines 71
 
 // Bits of signal are not used: mult1_res[33:32]
 // cleaner to write all bits even if not all are used
@@ -68,4 +68,4 @@ lint_off -msg UNOPTFLAT -file "*/rtl/ibex_cs_registers.sv" -lines 158
 // instr flops are duplicated to reduce fan-out, neater to just leave unused
 // bits in fully duplicated instr for synthesiser to optimise out rather than
 // explicitly flopping only the bits we want.
-lint_off -msg UNUSED -file "*/rtl/ibex_decoder.sv" -lines 106
+lint_off -msg UNUSED -file "*/rtl/ibex_decoder.sv" -lines 107
