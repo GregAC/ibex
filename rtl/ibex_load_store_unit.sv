@@ -3,6 +3,7 @@
 // Licensed under the Apache License, Version 2.0, see LICENSE for details.
 // SPDX-License-Identifier: Apache-2.0
 
+
 /**
  * Load Store Unit
  *
@@ -12,7 +13,9 @@
 
 `include "prim_assert.sv"
 
-module ibex_load_store_unit (
+module ibex_load_store_unit #(
+  parameter bit WritebackStage = 0
+) (
     input  logic         clk_i,
     input  logic         rst_ni,
 
@@ -36,6 +39,7 @@ module ibex_load_store_unit (
     input  logic         data_sign_ext_ex_i,   // sign extension                   -> from ID/EX
 
     output logic [31:0]  data_rdata_ex_o,      // requested data                   -> to ID/EX
+    output logic         data_rdata_valid_o,
     input  logic         data_req_ex_i,        // data request                     -> from ID/EX
 
     input  logic [31:0]  adder_result_ex_i,    // address computed in ALU          -> from ID/EX
@@ -47,11 +51,18 @@ module ibex_load_store_unit (
                                                // -> AGU for misaligned accesses
     output logic         data_valid_o,         // LSU has completed transaction    -> to ID/EX
 
+    output logic         id_stall_lsu_o,       // Stall ID/EX as access cannot enter WB yet
+                                               // (ignored when writebackstage isn't present)
+
     // exception signals
     output logic         load_err_o,
     output logic         store_err_o,
 
-    output logic         busy_o
+    output logic         load_o,
+    output logic         busy_o,
+
+    output logic         perf_load_o,
+    output logic         perf_store_o
 );
 
   logic [31:0]  data_addr;
@@ -86,8 +97,8 @@ module ibex_load_store_unit (
   logic         data_or_pmp_err;
 
   typedef enum logic [2:0]  {
-    IDLE, WAIT_GNT_MIS, WAIT_RVALID_MIS, WAIT_GNT, WAIT_RVALID,
-    WAIT_RVALID_DONE
+    IDLE, WAIT_GNT_MIS, WAIT_RVALID_MIS, WAIT_GNT,
+    WAIT_RVALID_MIS_GNTS_DONE
   } ls_fsm_e;
 
   ls_fsm_e ls_fsm_cs, ls_fsm_ns;
@@ -321,7 +332,6 @@ module ibex_load_store_unit (
     ls_fsm_ns       = ls_fsm_cs;
 
     data_req_o          = 1'b0;
-    data_valid_o        = 1'b0;
     addr_incr_req_o     = 1'b0;
     handle_misaligned_d = handle_misaligned_q;
     data_or_pmp_err     = 1'b0;
@@ -332,20 +342,38 @@ module ibex_load_store_unit (
     ctrl_update         = 1'b0;
     rdata_update        = 1'b0;
 
+    id_stall_lsu_o      = 1'b0;
+
+    perf_load_o         = 1'b0;
+    perf_store_o        = 1'b0;
+
     unique case (ls_fsm_cs)
 
       IDLE: begin
         if (data_req_ex_i) begin
-          data_req_o = 1'b1;
-          pmp_err_d  = data_pmp_err_i;
-          lsu_err_d  = 1'b0;
+          data_req_o   = 1'b1;
+          pmp_err_d    = data_pmp_err_i;
+          lsu_err_d    = 1'b0;
+          perf_load_o  = ~data_we_ex_i;
+          perf_store_o = data_we_ex_i;
+
           if (data_gnt_i) begin
             ctrl_update         = 1'b1;
             addr_update         = 1'b1;
             handle_misaligned_d = split_misaligned_access;
-            ls_fsm_ns           = split_misaligned_access ? WAIT_RVALID_MIS : WAIT_RVALID;
+            ls_fsm_ns           = split_misaligned_access ? WAIT_RVALID_MIS : IDLE;
+
+            if (WritebackStage) begin
+              // For misaligned access wait in ID/EX until final access has been granted
+              id_stall_lsu_o = split_misaligned_access;
+            end
           end else begin
             ls_fsm_ns           = split_misaligned_access ? WAIT_GNT_MIS    : WAIT_GNT;
+
+            if (WritebackStage) begin
+              // Load/Store waits in ID/EX until access is granted
+              id_stall_lsu_o = 1'b1;
+            end
           end
         end
       end
@@ -361,6 +389,11 @@ module ibex_load_store_unit (
           ctrl_update         = 1'b1;
           handle_misaligned_d = 1'b1;
           ls_fsm_ns           = WAIT_RVALID_MIS;
+        end
+
+        if (WritebackStage) begin
+          // First request of misaligned being processed so stall in ID/EX regardless of grant
+          id_stall_lsu_o = 1'b1;
         end
       end
 
@@ -379,16 +412,23 @@ module ibex_load_store_unit (
           // Capture the first rdata for loads
           rdata_update = ~data_we_q;
           // If already granted, wait for second rvalid
-          ls_fsm_ns = data_gnt_i ? WAIT_RVALID : WAIT_GNT;
+          ls_fsm_ns = data_gnt_i ? IDLE : WAIT_GNT;
           // Update the address for the second part, if no error
           addr_update = data_gnt_i & ~(data_err_i | pmp_err_q);
-
+          // clear handle_misaligned if second request is granted
+          handle_misaligned_d = ~data_gnt_i;
         end else begin
           // first part rvalid is NOT received
           if (data_gnt_i) begin
             // second grant is received
-            ls_fsm_ns = WAIT_RVALID_DONE;
+            ls_fsm_ns = WAIT_RVALID_MIS_GNTS_DONE;
+            handle_misaligned_d = 1'b0;
           end
+        end
+
+        if (WritebackStage) begin
+          // Stall in ID/EX until second request has been granted
+          id_stall_lsu_o = ~data_gnt_i;
         end
       end
 
@@ -397,26 +437,20 @@ module ibex_load_store_unit (
         addr_incr_req_o = handle_misaligned_q;
         data_req_o      = 1'b1;
         if (data_gnt_i || pmp_err_q) begin
-          ctrl_update = 1'b1;
+          ctrl_update         = 1'b1;
           // Update the address, unless there was an error
-          addr_update = ~lsu_err_q;
-          ls_fsm_ns   = WAIT_RVALID;
-        end
-      end
-
-      WAIT_RVALID: begin
-        if (data_rvalid_i || pmp_err_q) begin
-          data_valid_o        = 1'b1;
-          // Data error from either part
-          data_or_pmp_err     = lsu_err_q | data_err_i | pmp_err_q;
-          handle_misaligned_d = 1'b0;
+          addr_update         = ~lsu_err_q;
           ls_fsm_ns           = IDLE;
+          handle_misaligned_d = 1'b0;
         end else begin
-          ls_fsm_ns           = WAIT_RVALID;
+          if (WritebackStage) begin
+            // Request not granted so stall in ID/EX
+            id_stall_lsu_o = 1'b1;
+          end
         end
       end
 
-      WAIT_RVALID_DONE: begin
+      WAIT_RVALID_MIS_GNTS_DONE: begin
         // tell ID/EX stage to update the address (to make sure the
         // second address can be captured correctly for mtval and PMP checking)
         addr_incr_req_o = 1'b1;
@@ -431,7 +465,11 @@ module ibex_load_store_unit (
           // Capture the first rdata for loads
           rdata_update = ~data_we_q;
           // Wait for second rvalid
-          ls_fsm_ns = WAIT_RVALID;
+          ls_fsm_ns = IDLE;
+        end else begin
+          if (WritebackStage) begin
+            id_stall_lsu_o = 1'b1;
+          end
         end
       end
 
@@ -460,6 +498,10 @@ module ibex_load_store_unit (
   // Outputs //
   /////////////
 
+  assign data_or_pmp_err    = lsu_err_q | data_err_i | pmp_err_q;
+  assign data_valid_o       = (data_rvalid_i | pmp_err_q) & (ls_fsm_cs == IDLE);
+  assign data_rdata_valid_o = data_valid_o & ~data_we_q;
+
   // output to register file
   assign data_rdata_ex_o = data_rdata_ext;
 
@@ -476,10 +518,11 @@ module ibex_load_store_unit (
   assign addr_last_o   = addr_last_q;
 
   // Signal a load or store error depending on the transaction type outstanding
-  assign load_err_o    = data_or_pmp_err & ~data_we_q;
-  assign store_err_o   = data_or_pmp_err &  data_we_q;
+  assign load_err_o    = data_or_pmp_err & ~data_we_q & data_valid_o;
+  assign store_err_o   = data_or_pmp_err &  data_we_q & data_valid_o;
 
   assign busy_o = (ls_fsm_cs != IDLE);
+  assign load_o = ~data_we_q;
 
   ////////////////
   // Assertions //
@@ -491,16 +534,9 @@ module ibex_load_store_unit (
   `ASSERT_KNOWN(IbexRDataOffsetQKnown, rdata_offset_q, clk_i, !rst_ni)
   `ASSERT_KNOWN(IbexDataTypeQKnown, data_type_q, clk_i, !rst_ni)
   `ASSERT(IbexLsuStateValid, ls_fsm_cs inside {
-      IDLE, WAIT_GNT_MIS, WAIT_RVALID_MIS, WAIT_GNT, WAIT_RVALID,
-      WAIT_RVALID_DONE
+      IDLE, WAIT_GNT_MIS, WAIT_RVALID_MIS, WAIT_GNT,
+      WAIT_RVALID_MIS_GNTS_DONE
       }, clk_i, !rst_ni)
-
-  // There must not be an rvalid unless the FSM is handlling it.
-  `ASSERT(IbexRvalidNotHandled, data_rvalid_i |-> (
-      (ls_fsm_cs == WAIT_RVALID) ||
-      (ls_fsm_cs == WAIT_RVALID_MIS) ||
-      (ls_fsm_cs == WAIT_RVALID_DONE)
-      ), clk_i, !rst_ni)
 
   // Errors must only be sent together with rvalid.
   `ASSERT(IbexDataErrWithoutRvalid, data_err_i |-> data_rvalid_i, clk_i, !rst_ni)

@@ -29,6 +29,7 @@ lint_off -msg UNUSED -file "*/rtl/ibex_alu.sv" -lines 104
 
 // Bits of signal are not used: alu_adder_ext_i[0]
 // Bottom bit is round, not needed
+<<<<<<< HEAD
 lint_off -msg UNUSED -file "*/rtl/ibex_multdiv_fast.sv" -lines 26
 
 // Bits of signal are not used: mac_res_ext[34]
@@ -38,6 +39,17 @@ lint_off -msg UNUSED -file "*/rtl/ibex_multdiv_fast.sv" -lines 51
 // Bits of signal are not used: res_adder_h[32]
 // cleaner to write all bits even if not all are used
 lint_off -msg UNUSED -file "*/rtl/ibex_multdiv_fast.sv" -lines 71
+=======
+lint_off -msg UNUSED -file "*/rtl/ibex_multdiv_fast.sv" -lines 25
+
+// Bits of signal are not used: mac_res_ext[34]
+// cleaner to write all bits even if not all are used
+lint_off -msg UNUSED -file "*/rtl/ibex_multdiv_fast.sv" -lines 52
+
+// Bits of signal are not used: res_adder_h[32]
+// cleaner to write all bits even if not all are used
+lint_off -msg UNUSED -file "*/rtl/ibex_multdiv_fast.sv" -lines 72
+>>>>>>> 1145cd7... [RTL] Add configurable third pipeline stage
 
 // Signal is not used: test_en_i
 // testability signal
@@ -58,10 +70,18 @@ lint_off -msg UNUSED -file "*/rtl/ibex_register_file_fpga.sv" -lines 20
 // Signal unoptimizable: Feedback to clock or circular logic:
 // ibex_core.cs_registers_i.mie_q
 // Issue lowrisc/ibex#212
+<<<<<<< HEAD
 lint_off -msg UNOPTFLAT -file "*/rtl/ibex_cs_registers.sv" -lines 170
+=======
+lint_off -msg UNOPTFLAT -file "*/rtl/ibex_cs_registers.sv" -lines 169
+>>>>>>> 1145cd7... [RTL] Add configurable third pipeline stage
 
 // Bits of signal are not used: instr_alu[24:15,11:7]
 // instr flops are duplicated to reduce fan-out, neater to just leave unused
 // bits in fully duplicated instr for synthesiser to optimise out rather than
 // explicitly flopping only the bits we want.
+<<<<<<< HEAD
 lint_off -msg UNUSED -file "*/rtl/ibex_decoder.sv" -lines 106
+=======
+lint_off -msg UNUSED -file "*/rtl/ibex_decoder.sv" -lines 105
+>>>>>>> 1145cd7... [RTL] Add configurable third pipeline stage

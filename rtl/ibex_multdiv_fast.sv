@@ -14,7 +14,9 @@
 
 `include "prim_assert.sv"
 
-module ibex_multdiv_fast (
+module ibex_multdiv_fast #(
+    parameter bit WritebackStage = 0
+) (
     input  logic             clk_i,
     input  logic             rst_ni,
     input  logic             mult_en_i,
@@ -29,6 +31,8 @@ module ibex_multdiv_fast (
 
     output logic [32:0]      alu_operand_a_o,
     output logic [32:0]      alu_operand_b_o,
+
+    input  logic             multdiv_ready_id_i,
 
     output logic [31:0]      multdiv_result_o,
     output logic             valid_o
@@ -71,6 +75,14 @@ module ibex_multdiv_fast (
   logic [32:0] res_adder_h;
   logic        mult_valid;
   logic        div_valid;
+  logic        mult_hold;
+  logic        div_hold;
+
+  logic        mult_en_internal;
+  logic        div_en_internal;
+
+  assign mult_en_internal = mult_en_i & ~mult_hold;
+  assign div_en_internal  = div_en_i & ~div_hold;
 
   always_ff @(posedge clk_i or negedge rst_ni) begin : proc_mult_state_q
     if (!rst_ni) begin
@@ -83,11 +95,11 @@ module ibex_multdiv_fast (
       op_quotient_q    <= '0;
     end else begin
 
-      if (mult_en_i) begin
+      if (mult_en_internal) begin
         mult_state_q <= mult_state_n;
       end
 
-      if (div_en_i) begin
+      if (div_en_internal) begin
         div_counter_q    <= div_counter_n;
         op_denominator_q <= op_denominator_n;
         op_numerator_q   <= op_numerator_n;
@@ -96,9 +108,9 @@ module ibex_multdiv_fast (
       end
 
       unique case(1'b1)
-        mult_en_i:
+        mult_en_internal:
           mac_res_q <= mac_res_n;
-        div_en_i:
+        div_en_internal:
           mac_res_q <= op_remainder_n;
         default:
           mac_res_q <= mac_res_q;
@@ -154,6 +166,7 @@ module ibex_multdiv_fast (
     alu_operand_a_o  = {32'h0  , 1'b1};
     alu_operand_b_o  = {~op_b_i, 1'b1};
     div_valid        = 1'b0;
+    div_hold         = 1'b0;
 
     unique case(md_state_q)
       MD_IDLE: begin
@@ -236,7 +249,13 @@ module ibex_multdiv_fast (
       end
 
       MD_FINISH: begin
-        md_state_n = MD_IDLE;
+        if (WritebackStage) begin
+          // Hold result until ID stage is ready to accept it
+          md_state_n =  multdiv_ready_id_i ? MD_IDLE : MD_FINISH;
+          div_hold   = ~multdiv_ready_id_i;
+        end else begin
+          md_state_n = MD_IDLE;
+        end
         div_valid   = 1'b1;
       end
 
@@ -257,6 +276,7 @@ module ibex_multdiv_fast (
     mac_res_n    = mac_res;
     mult_state_n = mult_state_q;
     mult_valid   = 1'b0;
+    mult_hold    = 1'b0;
 
     unique case (mult_state_q)
 
@@ -298,7 +318,14 @@ module ibex_multdiv_fast (
           accum        = {18'b0,mac_res_q[31:16]};
           mac_res_n    = {2'b0,mac_res[15:0],mac_res_q[15:0]};
           mult_valid   = 1'b1;
-          mult_state_n = ALBL;
+
+          if (WritebackStage) begin
+            // Hold result until ID stage is ready to accept it
+            mult_state_n =  multdiv_ready_id_i ? ALBL : AHBL;
+            mult_hold    = ~multdiv_ready_id_i;
+          end else begin
+            mult_state_n = ALBL;
+          end
         end else begin
           accum        = mac_res_q;
           mac_res_n    = mac_res;
@@ -317,8 +344,15 @@ module ibex_multdiv_fast (
         accum[33:18]  = {16{signed_mult & mac_res_q[33]}};
         // result of AH*BL is not signed only if signed_mode_i == 2'b00
         mac_res_n    = mac_res;
-        mult_state_n = ALBL;
         mult_valid   = 1'b1;
+
+        if (WritebackStage) begin
+          // Hold result until ID stage is ready to accept it
+          mult_state_n =  multdiv_ready_id_i ? ALBL : AHBH;
+          mult_hold    = ~multdiv_ready_id_i;
+        end else begin
+          mult_state_n = ALBL;
+        end
       end
       default: begin
         mult_state_n = ALBL;

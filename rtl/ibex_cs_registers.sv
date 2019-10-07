@@ -77,9 +77,11 @@ module ibex_cs_registers #(
 
     input  logic [31:0]          pc_if_i,
     input  logic [31:0]          pc_id_i,
+    input  logic [31:0]          pc_wb_i,
 
     input  logic                 csr_save_if_i,
     input  logic                 csr_save_id_i,
+    input  logic                 csr_save_wb_i,
     input  logic                 csr_restore_mret_i,
     input  logic                 csr_restore_dret_i,
     input  logic                 csr_save_cause_i,
@@ -93,14 +95,13 @@ module ibex_cs_registers #(
     // Performance Counters
     input  logic                 instr_ret_i,            // instr retired in ID/EX stage
     input  logic                 instr_ret_compressed_i, // compressed instr retired
-    input  logic                 imiss_i,                // instr fetch
-    input  logic                 pc_set_i,               // PC was set to a new value
+    input  logic                 iside_wait_i,           // core waiting for the iside
     input  logic                 jump_i,                 // jump instr seen (j, jr, jal, jalr)
     input  logic                 branch_i,               // branch instr seen (bf, bnf)
     input  logic                 branch_taken_i,         // branch was taken
     input  logic                 mem_load_i,             // load from memory in this cycle
     input  logic                 mem_store_i,            // store to memory in this cycle
-    input  logic                 lsu_busy_i
+    input  logic                 dside_wait_i            // core waiting for the dside
 );
 
   import ibex_pkg::*;
@@ -551,6 +552,9 @@ module ibex_cs_registers #(
           csr_save_id_i: begin
             exception_pc = pc_id_i;
           end
+          csr_save_wb_i: begin
+            exception_pc = pc_wb_i;
+          end
           default:;
         endcase
 
@@ -859,9 +863,8 @@ module ibex_cs_registers #(
     mhpmcounter_incr[0]  = 1'b1;                   // mcycle
     mhpmcounter_incr[1]  = 1'b0;                   // reserved
     mhpmcounter_incr[2]  = instr_ret_i;            // minstret
-    mhpmcounter_incr[3]  = lsu_busy_i;             // cycles waiting for data memory
-    mhpmcounter_incr[4]  = imiss_i & ~pc_set_i;    // cycles waiting for instr fetches
-                                                   // excl. jump and branch set cycles
+    mhpmcounter_incr[3]  = dside_wait_i;           // cycles waiting for data memory
+    mhpmcounter_incr[4]  = iside_wait_i;           // cycles waiting for instr fetches
     mhpmcounter_incr[5]  = mem_load_i;             // num of loads
     mhpmcounter_incr[6]  = mem_store_i;            // num of stores
     mhpmcounter_incr[7]  = jump_i;                 // num of jumps (unconditional)
