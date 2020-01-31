@@ -30,6 +30,7 @@ for file in ../rtl/*.sv; do
   module=`basename -s .sv $file`
   sv2v \
     --define=SYNTHESIS \
+    --incdir=../shared/rtl/ \
     ../rtl/*_pkg.sv \
     ../shared/rtl/prim_assert.sv \
     $file \
