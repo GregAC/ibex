@@ -16,6 +16,8 @@ fi
 
 export LR_SYNTH_TIMING_RUN=1
 export LR_SYNTH_FLATTEN=1
+export LR_SYNTH_IBEX_BRANCH_TARGET_ALU=1
+export LR_SYNTH_IBEX_WRITEBACK_STAGE=1
 
 # SETUP CELL LIBRARY PATH
 # Uncomment the lines below and set the path to an appropriate .lib file
