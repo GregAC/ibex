@@ -52,6 +52,10 @@ rm -f $LR_SYNTH_OUT_DIR/generated/ibex_tracer.v
 # flop-based one instead)
 rm -f $LR_SYNTH_OUT_DIR/generated/ibex_register_file_latch.v
 
+# remove the fpga register file (because we will use the
+# flop-based one instead)
+rm -f $LR_SYNTH_OUT_DIR/generated/ibex_register_file_fpga.v
+
 yosys -c ./tcl/yosys_run_synth.tcl | tee ./$LR_SYNTH_OUT_DIR/log/syn.log
 
 sta ./tcl/sta_run_reports.tcl | tee ./$LR_SYNTH_OUT_DIR/log/sta.log
