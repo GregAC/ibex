@@ -1,5 +1,8 @@
 # FOSDEM README
 
+Talk slides and video can be found at:
+https://fosdem.org/2020/schedule/event/riscv_lowrisc/
+
 This branches contains the RTL for the optional third pipeline stage of Ibex. At
 the time of writing it also exists as a draft PR against Ibex master
 (https://github.com/lowRISC/ibex/pull/568)
