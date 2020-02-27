@@ -90,7 +90,10 @@ module ibex_core #(
 
     // CPU Control Signals
     input  logic        fetch_enable_i,
-    output logic        core_sleep_o
+    output logic        core_sleep_o,
+
+    output logic                  bp_branch_o,
+    output logic [31:0]           bp_branch_pc_o
 );
 
   import ibex_pkg::*;
@@ -350,7 +353,10 @@ module ibex_core #(
       .id_in_ready_i            ( id_in_ready            ),
 
       .if_busy_o                ( if_busy                ),
-      .perf_imiss_o             ( perf_imiss             )
+      .perf_imiss_o             ( perf_imiss             ),
+
+      .bp_branch_o              ( bp_branch_o            ),
+      .bp_branch_pc_o           ( bp_branch_pc_o         )
   );
 
   // Qualify the instruction request with PMP error

@@ -18,14 +18,16 @@
 # These IO constraints are an educated guess, they effectively assume there's a
 # bit of external logic on the inputs and outputs but not much before they reach
 # a flop.
-set lr_synth_outputs [list {instr_req_o   70.0} \
-                           {instr_addr_o  70.0} \
-                           {data_req_o    70.0} \
-                           {data_we_o     70.0} \
-                           {data_be_o     70.0} \
-                           {data_addr_o   70.0} \
-                           {data_wdata_o  70.0} \
-                           {core_sleep_o  80.0}]
+set lr_synth_outputs [list {instr_req_o    70.0} \
+                           {instr_addr_o   70.0} \
+                           {data_req_o     70.0} \
+                           {data_we_o      70.0} \
+                           {data_be_o      70.0} \
+                           {data_addr_o    70.0} \
+                           {data_wdata_o   70.0} \
+                           {bp_branch_o    70.0} \
+                           {bp_branch_pc_o 70.0} \
+                           {core_sleep_o   80.0}]
 
 set lr_synth_inputs [list {test_en_i      0.0 } \
                           {hart_id_i      0.0 } \

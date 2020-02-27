@@ -71,7 +71,10 @@ module ibex_if_stage #(
 
     // misc signals
     output logic                  if_busy_o,                // IF stage is busy fetching instr
-    output logic                  perf_imiss_o              // instr fetch miss
+    output logic                  perf_imiss_o,             // instr fetch miss
+
+    output logic                  bp_branch_o,
+    output logic [31:0]           bp_branch_pc_o
 );
 
   import ibex_pkg::*;
@@ -262,6 +265,16 @@ module ibex_if_stage #(
       end
     end
   end
+
+  ibex_branch_predict branch_predict_i (
+    .instr_rdata ( fetch_rdata       ),
+    .instr_pc    ( pc_if_o           ),
+    .instr_valid ( if_id_pipe_reg_we ),
+    .branch_o    ( bp_branch_o       ),
+    .branch_pc_o ( bp_branch_pc_o    )
+  );
+  //assign branch_o = 1'b0;
+  //assign branch_pc_o = '0;
 
   ////////////////
   // Assertions //
