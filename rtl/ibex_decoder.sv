@@ -93,7 +93,8 @@ module ibex_decoder #(
 
     // jump/branches
     output logic                 jump_in_dec_o,         // jump is being calculated in ALU
-    output logic                 branch_in_dec_o
+    output logic                 branch_in_dec_o,
+    output logic                 jr_in_dec_o
 );
 
   import ibex_pkg::*;
@@ -169,6 +170,7 @@ module ibex_decoder #(
 
   always_comb begin
     jump_in_dec_o               = 1'b0;
+    jr_in_dec_o                 = 1'b0;
     jump_set_o                  = 1'b0;
     branch_in_dec_o             = 1'b0;
 
@@ -221,6 +223,7 @@ module ibex_decoder #(
 
       OPCODE_JALR: begin  // Jump and Link Register
         jump_in_dec_o      = 1'b1;
+        jr_in_dec_o        = 1'b1;
 
         if (instr_first_cycle_i) begin
           // Calculate jump target

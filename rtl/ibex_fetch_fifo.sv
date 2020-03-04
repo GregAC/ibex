@@ -33,7 +33,8 @@ module ibex_fetch_fifo #(
     input  logic        out_ready_i,
     output logic [31:0] out_addr_o,
     output logic [31:0] out_rdata_o,
-    output logic        out_err_o
+    output logic        out_err_o,
+    output logic        out_buf_ins_o
 );
 
   // To gain extra performance DEPTH should be increased, this is due to some inefficiencies in the
@@ -110,15 +111,18 @@ module ibex_fetch_fifo #(
       out_err_o   = err_unaligned;
 
       if (unaligned_is_compressed) begin
-        out_valid_o = valid;
+        out_valid_o   = valid;
+        out_buf_ins_o = valid_q[0];
       end else begin
-        out_valid_o = valid_unaligned;
+        out_valid_o   = valid_unaligned;
+        out_buf_ins_o = valid_q[0] & valid_q[1];
       end
     end else begin
       // aligned case
-      out_rdata_o = rdata;
-      out_err_o   = err;
-      out_valid_o = valid;
+      out_rdata_o   = rdata;
+      out_err_o     = err;
+      out_valid_o   = valid;
+      out_buf_ins_o = valid_q[0];
     end
   end
 

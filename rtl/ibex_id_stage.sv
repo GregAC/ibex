@@ -51,6 +51,7 @@ module ibex_id_stage #(
 
     input  logic                      illegal_c_insn_i,
     input  logic                      instr_fetch_err_i,
+    input  logic                      instr_buf_ins_i,
 
     input  logic [31:0]               pc_id_i,
 
@@ -161,7 +162,8 @@ module ibex_id_stage #(
     output logic                      perf_dside_wait_o, // instruction in ID/EX is awaiting memory
                                                          // access to finish before proceeding
     output logic                      instr_id_done_o,
-    output logic                      instr_id_done_compressed_o
+    output logic                      instr_id_done_compressed_o,
+    output logic                      perf_buf_branch_o
 );
 
   import ibex_pkg::*;
@@ -180,6 +182,7 @@ module ibex_id_stage #(
   logic        branch_set, branch_set_d;
   logic        jump_in_dec;
   logic        jump_set;
+  logic        jr_in_dec;
 
   logic        instr_first_cycle;
   logic        instr_executing;
@@ -381,7 +384,8 @@ module ibex_id_stage #(
 
       // jump/branches
       .jump_in_dec_o                   ( jump_in_dec          ),
-      .branch_in_dec_o                 ( branch_in_dec        )
+      .branch_in_dec_o                 ( branch_in_dec        ),
+      .jr_in_dec_o                     ( jr_in_dec            )
   );
 
   /////////////////////////////////
@@ -831,6 +835,8 @@ module ibex_id_stage #(
     assign en_wb_o         = 1'b0;
     assign instr_id_done_o = instr_done;
   end
+
+  assign perf_buf_branch_o = instr_buf_ins_i & instr_id_done_o & (branch_in_dec | (jump_in_dec & ~jr_in_dec));
 
   assign instr_id_done_compressed_o = instr_id_done_o & instr_is_compressed_i;
 

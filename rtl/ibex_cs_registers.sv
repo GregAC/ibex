@@ -14,7 +14,7 @@
 
 module ibex_cs_registers #(
     parameter bit          DbgTriggerEn     = 0,
-    parameter int unsigned MHPMCounterNum   = 8,
+    parameter int unsigned MHPMCounterNum   = 9,
     parameter int unsigned MHPMCounterWidth = 40,
     parameter bit          PMPEnable        = 0,
     parameter int unsigned PMPGranularity   = 0,
@@ -97,7 +97,8 @@ module ibex_cs_registers #(
     input  logic                 branch_taken_i,         // branch was taken
     input  logic                 mem_load_i,             // load from memory in this cycle
     input  logic                 mem_store_i,            // store to memory in this cycle
-    input  logic                 dside_wait_i            // core waiting for the dside
+    input  logic                 dside_wait_i,           // core waiting for the dside
+    input  logic                 buf_branch_i
 );
 
   import ibex_pkg::*;
@@ -856,6 +857,7 @@ module ibex_cs_registers #(
     mhpmcounter_incr[8]  = branch_i;               // num of branches (conditional)
     mhpmcounter_incr[9]  = branch_taken_i;         // num of taken branches (conditional)
     mhpmcounter_incr[10] = instr_ret_compressed_i; // num of compressed instr
+    mhpmcounter_incr[11] = buf_branch_i;
 
     // inactive counters
     for (int unsigned i=3+MHPMCounterNum; i<32; i++) begin : gen_mhpmcounter_incr_inactive

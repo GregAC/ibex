@@ -45,6 +45,8 @@ module ibex_if_stage #(
     output logic                  instr_fetch_err_o,        // bus error on fetch
     output logic                  illegal_c_insn_id_o,      // compressed decoder thinks this
                                                             // is an invalid instr
+    output logic                  instr_buf_ins_o,
+
     output logic [31:0]           pc_if_o,
     output logic [31:0]           pc_id_o,
 
@@ -88,6 +90,7 @@ module ibex_if_stage #(
   logic       [31:0] fetch_rdata;
   logic       [31:0] fetch_addr;
   logic              fetch_err;
+  logic              fetch_buf_ins;
 
   logic       [31:0] exc_pc;
 
@@ -147,6 +150,7 @@ module ibex_if_stage #(
       .rdata_o           ( fetch_rdata                 ),
       .addr_o            ( fetch_addr                  ),
       .err_o             ( fetch_err                   ),
+      .buf_ins_o         ( fetch_buf_ins               ),
 
       // goes to instruction memory / instruction cache
       .instr_req_o       ( instr_req_o                 ),
@@ -255,6 +259,7 @@ module ibex_if_stage #(
         instr_is_compressed_id_o <= instr_is_compressed_int;
         illegal_c_insn_id_o      <= illegal_c_insn;
         pc_id_o                  <= pc_if_o;
+        instr_buf_ins_o          <= fetch_buf_ins;
       end else if (instr_valid_clear_i) begin
         instr_valid_id_o         <= 1'b0;
       end

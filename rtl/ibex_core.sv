@@ -108,6 +108,7 @@ module ibex_core #(
   logic        instr_is_compressed_id;
   logic        instr_fetch_err;        // Bus error on instr fetch
   logic        illegal_c_insn_id;      // Illegal compressed instruction sent to ID stage
+  logic        instr_buf_ins;
   logic [31:0] pc_if;                  // Program counter in IF stage
   logic [31:0] pc_id;                  // Program counter in ID stage
   logic [31:0] pc_wb;                  // Program counter in WB stage
@@ -262,6 +263,7 @@ module ibex_core #(
   logic        perf_tbranch;
   logic        perf_load;
   logic        perf_store;
+  logic        perf_buf_branch;
 
   // for RVFI
   logic        illegal_insn_id, unused_illegal_insn_id; // ID stage sees an illegal instruction
@@ -363,6 +365,7 @@ module ibex_core #(
       .instr_is_compressed_id_o ( instr_is_compressed_id ),
       .instr_fetch_err_o        ( instr_fetch_err        ),
       .illegal_c_insn_id_o      ( illegal_c_insn_id      ),
+      .instr_buf_ins_o          ( instr_buf_ins          ),
       .pc_if_o                  ( pc_if                  ),
       .pc_id_o                  ( pc_id                  ),
 
@@ -435,6 +438,7 @@ module ibex_core #(
 
       .instr_fetch_err_i            ( instr_fetch_err          ),
       .illegal_c_insn_i             ( illegal_c_insn_id        ),
+      .instr_buf_ins_i              ( instr_buf_ins            ),
 
       .pc_id_i                      ( pc_id                    ),
 
@@ -534,7 +538,8 @@ module ibex_core #(
       .perf_tbranch_o               ( perf_tbranch             ),
       .perf_dside_wait_o            ( perf_dside_wait          ),
       .instr_id_done_o              ( instr_id_done            ),
-      .instr_id_done_compressed_o   ( instr_id_done_compressed )
+      .instr_id_done_compressed_o   ( instr_id_done_compressed ),
+      .perf_buf_branch_o            ( perf_buf_branch          )
   );
 
   // for RVFI only
@@ -828,7 +833,8 @@ module ibex_core #(
       .branch_taken_i          ( perf_tbranch             ),
       .mem_load_i              ( perf_load                ),
       .mem_store_i             ( perf_store               ),
-      .dside_wait_i            ( perf_dside_wait          )
+      .dside_wait_i            ( perf_dside_wait          ),
+      .buf_branch_i            ( perf_buf_branch          )
   );
 
   if (PMPEnable) begin : g_pmp
