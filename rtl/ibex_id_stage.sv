@@ -50,6 +50,7 @@ module ibex_id_stage #(
     // IF and ID stage signals
     output logic                      pc_set_o,
     output ibex_pkg::pc_sel_e         pc_mux_o,
+    output logic                      nt_branch_mispredict_o,
     output ibex_pkg::exc_pc_sel_e     exc_pc_mux_o,
     output ibex_pkg::exc_cause_e      exc_cause_o,
 
@@ -534,6 +535,7 @@ module ibex_id_stage #(
       .instr_req_o                    ( instr_req_o             ),
       .pc_set_o                       ( pc_set_o                ),
       .pc_mux_o                       ( pc_mux_o                ),
+      .nt_branch_mispredict_o         ( nt_branch_mispredict_o  ),
       .exc_pc_mux_o                   ( exc_pc_mux_o            ),
       .exc_cause_o                    ( exc_cause_o             ),
 

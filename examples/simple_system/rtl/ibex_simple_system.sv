@@ -82,8 +82,19 @@ module ibex_simple_system (
   logic [31:0] instr_addr;
   logic [31:0] instr_rdata;
   logic instr_err;
+  logic [1:0] instr_req_cnt;
+  logic instr_req_mod;
 
-  assign instr_gnt = instr_req;
+  always @(posedge IO_CLK or negedge IO_RST_N) begin
+    if (~IO_RST_N) begin
+      instr_req_cnt <= '0;
+    end else begin
+      instr_req_cnt <= instr_req_cnt + 1'b1;
+    end
+  end
+
+  assign instr_req_mod = instr_req /*& (instr_req_cnt == 2'b00)*/;
+  assign instr_gnt = instr_req_mod;
   assign instr_err = '0;
 
   `ifdef VERILATOR
@@ -201,7 +212,7 @@ module ibex_simple_system (
       .a_rvalid_o  (device_rvalid[Ram]),
       .a_rdata_o   (device_rdata[Ram]),
 
-      .b_req_i     (instr_req),
+      .b_req_i     (instr_req_mod),
       .b_we_i      (1'b0),
       .b_be_i      (4'b0),
       .b_addr_i    (instr_addr),

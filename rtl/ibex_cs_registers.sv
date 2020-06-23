@@ -16,7 +16,7 @@ module ibex_cs_registers #(
     parameter bit          DbgTriggerEn     = 0,
     parameter bit          DataIndTiming    = 1'b0,
     parameter bit          ICache           = 1'b0,
-    parameter int unsigned MHPMCounterNum   = 10,
+    parameter int unsigned MHPMCounterNum   = 14,
     parameter int unsigned MHPMCounterWidth = 40,
     parameter bit          PMPEnable        = 0,
     parameter int unsigned PMPGranularity   = 0,
@@ -106,7 +106,11 @@ module ibex_cs_registers #(
     input  logic                 mem_store_i,            // store to memory in this cycle
     input  logic                 dside_wait_i,           // core waiting for the dside
     input  logic                 mul_wait_i,             // core waiting for multiply
-    input  logic                 div_wait_i              // core waiting for divide
+    input  logic                 div_wait_i,             // core waiting for divide
+    input  logic                 branch_mispredict_i,
+    input  logic                 branch_mispredict_restart_i,
+    input  logic                 branch_mispredict_stall_i,
+    input  logic                 branch_mispredict_restart_stall_i
 );
 
   import ibex_pkg::*;
@@ -883,6 +887,10 @@ module ibex_cs_registers #(
     mhpmcounter_incr[10] = instr_ret_compressed_i; // num of compressed instr
     mhpmcounter_incr[11] = mul_wait_i;             // cycles waiting for multiply
     mhpmcounter_incr[12] = div_wait_i;             // cycles waiting for divide
+    mhpmcounter_incr[13] = branch_mispredict_i;
+    mhpmcounter_incr[14] = branch_mispredict_restart_i;
+    mhpmcounter_incr[15] = branch_mispredict_stall_i;
+    mhpmcounter_incr[16] = branch_mispredict_restart_stall_i;
   end
 
   // event selector (hardwired, 0 means no event)

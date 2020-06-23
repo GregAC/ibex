@@ -49,6 +49,8 @@ module ibex_controller #(
     output logic                  pc_set_o,                // jump to address set by pc_mux
     output ibex_pkg::pc_sel_e     pc_mux_o,                // IF stage fetch address selector
                                                            // (boot, normal, exception...)
+    output logic                  nt_branch_mispredict_o,  // Not-taken branch in ID/EX was predicted
+                                                           // (predicted taken).
     output ibex_pkg::exc_pc_sel_e exc_pc_mux_o,            // IF stage selector for exception PC
     output ibex_pkg::exc_cause_e  exc_cause_o,             // for IF stage, CSRs
 
@@ -349,42 +351,43 @@ module ibex_controller #(
 
   always_comb begin
     // Default values
-    instr_req_o           = 1'b1;
+    instr_req_o            = 1'b1;
 
-    csr_save_if_o         = 1'b0;
-    csr_save_id_o         = 1'b0;
-    csr_save_wb_o         = 1'b0;
-    csr_restore_mret_id_o = 1'b0;
-    csr_restore_dret_id_o = 1'b0;
-    csr_save_cause_o      = 1'b0;
-    csr_mtval_o           = '0;
+    csr_save_if_o          = 1'b0;
+    csr_save_id_o          = 1'b0;
+    csr_save_wb_o          = 1'b0;
+    csr_restore_mret_id_o  = 1'b0;
+    csr_restore_dret_id_o  = 1'b0;
+    csr_save_cause_o       = 1'b0;
+    csr_mtval_o            = '0;
 
     // The values of pc_mux and exc_pc_mux are only relevant if pc_set is set. Some of the states
     // below always set pc_mux and exc_pc_mux but only set pc_set if certain conditions are met.
     // This avoid having to factor those conditions into the pc_mux and exc_pc_mux select signals
     // helping timing.
-    pc_mux_o              = PC_BOOT;
-    pc_set_o              = 1'b0;
+    pc_mux_o               = PC_BOOT;
+    pc_set_o               = 1'b0;
+    nt_branch_mispredict_o = 1'b0;
 
-    exc_pc_mux_o          = EXC_PC_IRQ;
-    exc_cause_o           = EXC_CAUSE_INSN_ADDR_MISA; // = 6'h00
+    exc_pc_mux_o           = EXC_PC_IRQ;
+    exc_cause_o            = EXC_CAUSE_INSN_ADDR_MISA; // = 6'h00
 
-    ctrl_fsm_ns           = ctrl_fsm_cs;
+    ctrl_fsm_ns            = ctrl_fsm_cs;
 
-    ctrl_busy_o           = 1'b1;
+    ctrl_busy_o            = 1'b1;
 
-    halt_if               = 1'b0;
-    flush_id              = 1'b0;
+    halt_if                = 1'b0;
+    flush_id               = 1'b0;
 
-    debug_csr_save_o      = 1'b0;
-    debug_cause_o         = DBG_CAUSE_EBREAK;
-    debug_mode_d          = debug_mode_q;
-    nmi_mode_d            = nmi_mode_q;
+    debug_csr_save_o       = 1'b0;
+    debug_cause_o          = DBG_CAUSE_EBREAK;
+    debug_mode_d           = debug_mode_q;
+    nmi_mode_d             = nmi_mode_q;
 
-    perf_tbranch_o        = 1'b0;
-    perf_jump_o           = 1'b0;
+    perf_tbranch_o         = 1'b0;
+    perf_jump_o            = 1'b0;
 
-    controller_run_o      = 1'b0;
+    controller_run_o       = 1'b0;
 
     unique case (ctrl_fsm_cs)
       RESET: begin
@@ -472,7 +475,7 @@ module ibex_controller #(
         // the PC to the PC after the current instruction if it was mis-predicted (if was
         // predicted correctly no PC set occurs and pc_mux_o is irrelevant). Otherwise the PC to set
         // to is the PC we're jumping/branching to.
-        pc_mux_o = instr_bp_taken_i ? PC_B_NT : PC_JUMP;
+        pc_mux_o = PC_JUMP;
 
         if (instr_valid_i) begin
 
@@ -499,7 +502,7 @@ module ibex_controller #(
               // Always set a PC if the instruction was a predicted taken branch that was
               // mispredicted (not-taken). PC set will take us back to the instruction following
               // the mis-predicted branch.
-              pc_set_o = 1'b1;
+              nt_branch_mispredict_o = 1'b1;
             end
           end
 

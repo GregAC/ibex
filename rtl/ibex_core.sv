@@ -134,6 +134,8 @@ module ibex_core #(
   logic        instr_valid_clear;
   logic        pc_set;
   pc_sel_e     pc_mux_id;                      // Mux selector for next PC
+  logic        nt_branch_mispredict;           // Branch in ID/EX is not-taken and was predicted
+                                               // taken
   exc_pc_sel_e exc_pc_mux_id;                  // Mux selector for exception PC
   exc_cause_e  exc_cause;                      // Exception cause
 
@@ -403,6 +405,7 @@ module ibex_core #(
       .instr_valid_clear_i      ( instr_valid_clear      ),
       .pc_set_i                 ( pc_set                 ),
       .pc_mux_i                 ( pc_mux_id              ),
+      .nt_branch_mispredict_i   ( nt_branch_mispredict   ),
       .exc_pc_mux_i             ( exc_pc_mux_id          ),
       .exc_cause                ( exc_cause              ),
       .icache_enable_i          ( icache_enable          ),
@@ -468,6 +471,7 @@ module ibex_core #(
       .instr_req_o                  ( instr_req_int            ),
       .pc_set_o                     ( pc_set                   ),
       .pc_mux_o                     ( pc_mux_id                ),
+      .nt_branch_mispredict_o       ( nt_branch_mispredict     ),
       .exc_pc_mux_o                 ( exc_pc_mux_id            ),
       .exc_cause_o                  ( exc_cause                ),
       .icache_inval_o               ( icache_inval             ),
@@ -795,6 +799,20 @@ module ibex_core #(
   assign rvfi_rd_we_wb    = rf_we_wb | rf_we_lsu;
 `endif
 
+  logic branch_mispredict_last;
+  logic branch_mispredict_restart_last;
+
+  logic branch_mispredict_restart = if_stage_i.gen_prefetch_buffer.prefetch_buffer_i.branch_mispredict_restart;
+
+  always @(posedge clk or negedge rst_ni) begin
+    if (~rst_ni) begin
+      branch_mispredict_last <= 1'b0;
+      branch_mispredict_restart_last <= 1'b0;
+    end else begin
+      branch_mispredict_last <= nt_branch_mispredict;
+      branch_mispredict_restart_last <= branch_mispredict_restart;
+    end
+  end
 
   /////////////////////////////////////////
   // CSRs (Control and Status Registers) //
@@ -891,7 +909,11 @@ module ibex_core #(
       .mem_store_i             ( perf_store               ),
       .dside_wait_i            ( perf_dside_wait          ),
       .mul_wait_i              ( perf_mul_wait            ),
-      .div_wait_i              ( perf_div_wait            )
+      .div_wait_i              ( perf_div_wait            ),
+      .branch_mispredict_i     ( nt_branch_mispredict     ),
+      .branch_mispredict_restart_i ( branch_mispredict_restart ),
+      .branch_mispredict_stall_i ( branch_mispredict_last & ~instr_valid_id ),
+      .branch_mispredict_restart_stall_i ( branch_mispredict_restart_last & ~instr_valid_id )
   );
 
   // These assertions are in top-level as instr_valid_id required as the enable term
