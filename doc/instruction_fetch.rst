@@ -26,6 +26,16 @@ The interfaces of the icache module are the same as the prefetch buffer with two
 Firstly, a signal to enable the cache which is driven from a custom CSR.
 Secondly a signal to the flush the cache which is set every time a ``fence.i`` instruction is executed.
 
+Branch Prediction
+-----------------
+
+Ibex can be configured to use static branch prediction by setting the ``BranchPrediction`` parameter to 1.
+This improves performance by predicting any branch with a negative offset to be taken and any branch with a positive offset to be not taken.
+When successful the prediction removes a stall cycle from a taken branch.
+There is a mis-predict penalty when a not-taken branch is predicted taken.
+This will be a minimum of 1 cycle where the not-taken side of the branch is aligned (either a 16-bit compressed instruction or a 32-bit instruction aligned to a 32-bit boundary) and a minimum of 2 cycles where it isn't.
+This feature is *EXPERIMENTAL* and its effects are not yet fully documented.
+
 Instruction-Side Memory Interface
 ---------------------------------
 

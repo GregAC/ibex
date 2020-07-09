@@ -20,9 +20,12 @@ Instantiation Template
       .RV32E                    ( 0                   ),
       .RV32M                    ( 1                   ),
       .RV32B                    ( ibex_pkg::RV32BNone ),
+      .BranchTargetALU          ( 0                   ),
+      .WritebackStage           ( 0                   ),
       .MultiplierImplementation ( "fast"              ),
       .ICache                   ( 0                   ),
       .ICacheECC                ( 0                   ),
+      .BranchPrediction         ( 0                   ),
       .SecureIbex               ( 0                   ),
       .DbgTriggerEn             ( 0                   ),
       .DmHaltAddr               ( 32'h1A110800        ),
@@ -101,7 +104,7 @@ Parameters
 +------------------------------+-------------------+------------+-----------------------------------------------------------------+
 | ``BranchTargetALU``          | bit               | 0          | *EXPERIMENTAL* - Enables branch target ALU removing a stall     |
 |                              |                   |            | cycle from taken branches                                       |
-+------------------------------+------------------ +------------+-----------------------------------------------------------------+
++------------------------------+-------------------+------------+-----------------------------------------------------------------+
 | ``WritebackStage``           | bit               | 0          | *EXPERIMENTAL* - Enables third pipeline stage (writeback)       |
 |                              |                   |            | improving performance of loads and stores                       |
 +------------------------------+-------------------+------------+-----------------------------------------------------------------+
@@ -115,6 +118,8 @@ Parameters
 +------------------------------+-------------------+------------+-----------------------------------------------------------------+
 | ``ICacheECC``                | bit               | 0          | *EXPERIMENTAL* Enable SECDED ECC protection in ICache (if       |
 |                              |                   |            | ICache == 1)                                                    |
++------------------------------+-------------------+------------+-----------------------------------------------------------------+
+| ``BranchPrediction``         | bit               | 0          | *EXPERIMENTAL* Enable Static branch prediction                  |
 +------------------------------+-------------------+------------+-----------------------------------------------------------------+
 | ``SecureIbex``               | bit               | 0          | *EXPERIMENTAL* Enable various additional features targeting     |
 |                              |                   |            | secure code execution.                                          |
