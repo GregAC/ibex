@@ -24,6 +24,7 @@ module ibex_riscv_compliance (
   parameter     MultiplierImplementation = "fast";
   parameter bit BranchTargetALU          = 1'b0;
   parameter bit WritebackStage           = 1'b0;
+  parameter bit BranchPredictor          = 1'b0;
 
   logic clk_sys, rst_sys_n;
 
@@ -119,6 +120,7 @@ module ibex_riscv_compliance (
       .MultiplierImplementation (MultiplierImplementation),
       .BranchTargetALU          (BranchTargetALU         ),
       .WritebackStage           (WritebackStage          ),
+      .BranchPredictor          (BranchPredictor         ),
       .DmHaltAddr               (32'h00000000            ),
       .DmExceptionAddr          (32'h00000000            )
     ) u_core (

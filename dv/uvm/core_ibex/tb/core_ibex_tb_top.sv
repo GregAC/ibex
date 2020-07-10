@@ -47,6 +47,7 @@ module core_ibex_tb_top;
   parameter ibex_pkg::rv32b_e RV32B      = `IBEX_CFG_RV32B;
   parameter bit BranchTargetALU          = 1'b0;
   parameter bit WritebackStage           = 1'b0;
+  parameter bit BranchPredictor          = 1'b0;
 
   // VCS has issues taking a string as a define, so we have to build up the string via the
   // pre-processor.
@@ -63,7 +64,8 @@ module core_ibex_tb_top;
     .RV32B                    (RV32B                   ),
     .BranchTargetALU          (BranchTargetALU         ),
     .WritebackStage           (WritebackStage          ),
-    .MultiplierImplementation (MultiplierImplementation)
+    .MultiplierImplementation (MultiplierImplementation),
+    .BranchPredictor          (BranchPredictor         )
   ) dut (
     .clk_i          (clk                  ),
     .rst_ni         (rst_n                ),

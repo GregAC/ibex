@@ -30,6 +30,7 @@ module ibex_core #(
     parameter                   MultiplierImplementation = "fast",
     parameter bit               ICache                   = 1'b0,
     parameter bit               ICacheECC                = 1'b0,
+    parameter bit               BranchPredictor          = 1'b0,
     parameter bit               DbgTriggerEn             = 1'b0,
     parameter bit               SecureIbex               = 1'b0,
     parameter int unsigned      DmHaltAddr               = 32'h1A110800,
@@ -131,6 +132,7 @@ module ibex_core #(
                                                // ease fan-out)
   logic [15:0] instr_rdata_c_id;               // Compressed instruction sampled inside IF stage
   logic        instr_is_compressed_id;
+  logic        instr_bp_taken_id;
   logic        instr_fetch_err;                // Bus error on instr fetch
   logic        instr_fetch_err_plus2;          // Instruction error is misaligned
   logic        illegal_c_insn_id;              // Illegal compressed instruction sent to ID stage
@@ -154,6 +156,7 @@ module ibex_core #(
   logic        instr_valid_clear;
   logic        pc_set;
   logic        pc_set_spec;
+  logic        nt_branch_mispredict;
   pc_sel_e     pc_mux_id;                      // Mux selector for next PC
   exc_pc_sel_e exc_pc_mux_id;                  // Mux selector for exception PC
   exc_cause_e  exc_cause;                      // Exception cause
@@ -397,7 +400,8 @@ module ibex_core #(
       .DummyInstructions ( DummyInstructions ),
       .ICache            ( ICache            ),
       .ICacheECC         ( ICacheECC         ),
-      .SecureIbex        ( SecureIbex        )
+      .SecureIbex        ( SecureIbex        ),
+      .BranchPredictor   ( BranchPredictor   )
   ) if_stage_i (
       .clk_i                    ( clk                    ),
       .rst_ni                   ( rst_ni                 ),
@@ -421,6 +425,7 @@ module ibex_core #(
       .instr_rdata_alu_id_o     ( instr_rdata_alu_id     ),
       .instr_rdata_c_id_o       ( instr_rdata_c_id       ),
       .instr_is_compressed_id_o ( instr_is_compressed_id ),
+      .instr_bp_taken_o         ( instr_bp_taken_id      ),
       .instr_fetch_err_o        ( instr_fetch_err        ),
       .instr_fetch_err_plus2_o  ( instr_fetch_err_plus2  ),
       .illegal_c_insn_id_o      ( illegal_c_insn_id      ),
@@ -433,6 +438,7 @@ module ibex_core #(
       .pc_set_i                 ( pc_set                 ),
       .pc_set_spec_i            ( pc_set_spec            ),
       .pc_mux_i                 ( pc_mux_id              ),
+      .nt_branch_mispredict_i   ( nt_branch_mispredict   ),
       .exc_pc_mux_i             ( exc_pc_mux_id          ),
       .exc_cause                ( exc_cause              ),
       .dummy_instr_en_i         ( dummy_instr_en         ),
@@ -476,7 +482,8 @@ module ibex_core #(
       .BranchTargetALU ( BranchTargetALU ),
       .DataIndTiming   ( DataIndTiming   ),
       .SpecBranch      ( SpecBranch      ),
-      .WritebackStage  ( WritebackStage  )
+      .WritebackStage  ( WritebackStage  ),
+      .BranchPredictor ( BranchPredictor )
   ) id_stage_i (
       .clk_i                        ( clk                      ),
       .rst_ni                       ( rst_ni                   ),
@@ -491,6 +498,7 @@ module ibex_core #(
       .instr_rdata_alu_i            ( instr_rdata_alu_id       ),
       .instr_rdata_c_i              ( instr_rdata_c_id         ),
       .instr_is_compressed_i        ( instr_is_compressed_id   ),
+      .instr_bp_taken_i             ( instr_bp_taken_id        ),
 
       // Jumps and branches
       .branch_decision_i            ( branch_decision          ),
@@ -503,6 +511,7 @@ module ibex_core #(
       .pc_set_o                     ( pc_set                   ),
       .pc_set_spec_o                ( pc_set_spec              ),
       .pc_mux_o                     ( pc_mux_id                ),
+      .nt_branch_mispredict_o       ( nt_branch_mispredict     ),
       .exc_pc_mux_o                 ( exc_pc_mux_id            ),
       .exc_cause_o                  ( exc_cause                ),
       .icache_inval_o               ( icache_inval             ),
