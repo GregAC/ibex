@@ -1,0 +1,97 @@
+// Copyright lowRISC contributors.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+
+// Lint waivers for processing simple_system RTL with Verilator
+//
+// This should be used for rules applying to things like testbench
+// top-levels. For rules that apply to the actual design (files in the
+// 'rtl' directory), see verilator_waiver_rtl.vlt in the same
+// directory.
+//
+// See https://www.veripool.org/projects/verilator/wiki/Manual-verilator#CONFIGURATION-FILES
+// for documentation.
+//
+// Important: This file must included *before* any other Verilog file is read.
+// Otherwise, only global waivers are applied, but not file-specific waivers.
+
+`verilator_config
+
+lint_off -rule WIDTH -file "*/rtl/text_driver.sv"
+         -match "*expects 32 bits*'font_y_q' generates 4 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_driver.sv"
+         -match "*expects 32 bits*'font_x_q' generates 3 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_driver.sv"
+         -match "*expects 14 bits*'text_width_i' generates 8 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_display.sv"
+         -match "*HSync*generates 32 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_display.sv"
+         -match "*HStart*generates 32 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_display.sv"
+         -match "*HEnd*generates 32 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_display.sv"
+         -match "*HTotal*generates 32 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_display.sv"
+         -match "*VSync*generates 32 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_display.sv"
+         -match "*VStart*generates 32 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_display.sv"
+         -match "*VEnd*generates 32 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_display.sv"
+         -match "*VTotal*generates 32 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_display.sv"
+         -match "*HStartText*generates 32 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_display.sv"
+         -match "*HEndText*generates 32 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_display.sv"
+         -match "*VStartText*generates 32 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_display.sv"
+         -match "*VEndText*generates 32 bits*"
+
+lint_off -rule WIDTH -file "*/rtl/text_display.sv"
+         -match "*TextWidth*generates 32 bits*"
+
+lint_off -rule UNUSED -file "*/sim/display_ibex_sim.sv"
+         -match "*hdmi_tx*"
+
+lint_off -rule UNUSED -file "*/rtl/text_display.sv"
+         -match "*pix_*"
+
+lint_off -rule UNUSED -file "*/rtl/display_ram.sv"
+         -match "*core_addr_i*"
+
+lint_off -rule UNUSED -file "*/rtl/display_ram.sv"
+         -match "*disp_addr_i*"
+
+lint_off -rule UNUSED -file "*/rtl/display_ram.sv"
+         -match "*rst_disp*"
+
+lint_off -rule UNUSED -file "*/rtl/display_ibex_top.sv"
+         -match "*colour_data_bg*"
+
+lint_off -rule UNUSED -file "*/rtl/display_ibex_top.sv"
+         -match "*colour_data_fg*"
+
+lint_off -rule WIDTH -file "*/rtl/display_ibex_top.sv"
+         -match "*vcounter_hdmi*"
+
+lint_off -rule UNUSED -file "*/rtl/display_ctrl.sv"
+         -match "*core_addr_i*"
+
+lint_off -rule UNUSED -file "*/rtl/display_ctrl.sv"
+         -match "*core_wdata_i*"
+

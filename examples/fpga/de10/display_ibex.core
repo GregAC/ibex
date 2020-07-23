@@ -1,0 +1,51 @@
+CAPI=2:
+# Copyright lowRISC contributors.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+name: "lowrisc:ibex:display_ibex:0.1"
+description: "Ibex with a text display"
+
+filesets:
+  files_rtl:
+    depend:
+      - lowrisc:ibex:ibex_core
+      - lowrisc:prim:ram_1p
+      - lowrisc:prim:ram_2p
+      - lowrisc:prim:assert
+    files:
+      - rtl/display_ram.sv
+      - rtl/display_driver.sv
+      - rtl/display_ibex_top.sv
+      - rtl/text_display.sv
+      - rtl/text_driver.sv
+      - rtl/display_ctrl.sv
+    file_type: systemVerilogSource
+
+targets:
+  default: &default_target
+    filesets:
+      - files_rtl
+    toplevel: ibex_core
+  lint:
+    <<: *default_target
+    parameters:
+      - SYNTHESIS=true
+      - RVFI=true
+    default_tool: verilator
+    tools:
+      verilator:
+        mode: lint-only
+        verilator_options:
+          - "-Wall"
+          # RAM primitives wider than 64bit (required for ECC) fail to build in
+          # Verilator without increasing the unroll count (see Verilator#1266)
+          - "--unroll-count 72"
+  format:
+    filesets:
+      - files_rtl
+    default_tool: veribleformat
+    toplevel: ibex_core
+    tools:
+      veribleformat:
+        verible_format_args:
+          - "--inplace"

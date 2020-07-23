@@ -93,7 +93,11 @@ sleep_loop:
   jal x0, default_exc_handler
   .endr
   jal x0, timer_handler
-  .rept 23
+  .rept 8
+  jal x0, default_exc_handler
+  .endr
+  jal x0, display_int_handler
+  .rept 15
   jal x0, default_exc_handler
   .endr
 

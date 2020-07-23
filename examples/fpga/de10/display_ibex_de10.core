@@ -1,0 +1,68 @@
+CAPI=2:
+# Copyright lowRISC contributors.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+name: "lowrisc:ibex:display_ibex_de10"
+description: "An Ibex system with a text display for DE10"
+filesets:
+  files_fpga:
+    depend:
+      - lowrisc:ibex:display_ibex
+      - lowrisc:ibex:rtl_shared
+    files:
+      - fpga/hdmi_pll.qip: {file_type: QIP}
+      - fpga/hdmi_pll.v: {file_type: verilogSource}
+      - fpga/hdmi_pll/hdmi_pll_0002.qip: {file_type: QIP}
+      - fpga/hdmi_pll/hdmi_pll_0002.v: {file_type: verilogSource}
+      - fpga/I2C_HDMI_Config.v: {file_type: verilogSource}
+      - fpga/I2C_WRITE_WDATA.v: {file_type: verilogSource}
+      - fpga/I2C_Controller.v: {file_type: verilogSource}
+      - fpga/display_ibex_de10_top.sv: {file_type: systemVerilogSource}
+      - sv2v_in_place.py: {file_type: pythonSource, copyto: sv2v_in_place.py}
+      - test_font.vmem: {file_type: vmem, copyto: test_font.vmem}
+      - fpga/sram_init.mif: {file_type: mif, copyto: sram_init.mif}
+  files_constraints:
+    files:
+      - fpga/de10_constraints.sdc: {file_type: SDC}
+      - fpga/de10_assignments.tcl: {file_type: tclSource}
+
+scripts:
+  sv2v_in_place:
+    cmd:
+      - python3
+      - sv2v_in_place.py
+      - -DSYNTHESIS
+      - -DPRIM_DEFAULT_IMPL=prim_pkg::ImplAltera
+      - --incdir-list=incdirs.txt
+      - -v
+      - files.txt
+
+parameters:
+  # For value definition, please see ip/prim/rtl/prim_pkg.sv
+  PRIM_DEFAULT_IMPL:
+    datatype: str
+    paramtype: vlogdefine
+    description: Primitives implementation to use, e.g. "prim_pkg::ImplGeneric".
+  SRAM_INIT_FILE:
+    datatype: str
+    paramtype: vlogdefine
+    description: SRAM initialization file in vmem hex format
+    default: "../../../../../examples/sw/simple_system/display_test/display_test.vmem"
+
+targets:
+  synth:
+    default_tool: quartus
+    filesets:
+      - files_fpga
+      - files_constraints
+    toplevel: display_ibex_de10_top
+    parameters:
+      - SRAM_INIT_FILE
+      - PRIM_DEFAULT_IMPL=prim_pkg::ImplAltera
+    hooks:
+      pre_build:
+        - sv2v_in_place
+    tools:
+      quartus:
+        family: "Cyclone V"
+        device: "5CSEBA6U23I7"
