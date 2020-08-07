@@ -112,6 +112,11 @@ module ibex_if_stage #(
   logic              fetch_err;
   logic              fetch_err_plus2;
 
+  logic              if_instr_valid;
+  logic       [31:0] if_instr_rdata;
+  logic       [31:0] if_instr_addr;
+  logic              if_instr_err;
+
   logic       [31:0] exc_pc;
 
   logic        [5:0] irq_id;
@@ -120,7 +125,7 @@ module ibex_if_stage #(
   logic              if_id_pipe_reg_we; // IF-ID pipeline reg write enable
 
   // Dummy instruction signals
-  logic              fetch_valid_out;
+  //logic              fetch_valid_out;
   logic              stall_dummy_instr;
   logic [31:0]       instr_out;
   logic              instr_is_compressed_out;
@@ -256,11 +261,10 @@ module ibex_if_stage #(
   // flushing the branch instruction from IF this adds design complexity and for situations where
   // ID/EX stage stalls are common more timely fetching of branches is likely to have limited
   // performance impact.
-  assign branch_req  = pc_set_i | (predict_branch_taken & id_in_ready_i);
+  assign branch_req  = pc_set_i | predict_branch_taken;
   assign branch_spec = pc_set_spec_i | predict_branch_taken;
-  assign fetch_ready = id_in_ready_i & ~stall_dummy_instr;
 
-  assign pc_if_o     = fetch_addr;
+  assign pc_if_o     = if_instr_addr;
   assign if_busy_o   = prefetch_busy;
 
   // compressed instruction decoding, or more precisely compressed instruction
@@ -276,7 +280,7 @@ module ibex_if_stage #(
       .clk_i           ( clk_i                    ),
       .rst_ni          ( rst_ni                   ),
       .valid_i         ( fetch_valid & ~fetch_err ),
-      .instr_i         ( fetch_rdata              ),
+      .instr_i         ( if_instr_rdata           ),
       .instr_o         ( instr_decompressed       ),
       .is_compressed_o ( instr_is_compressed      ),
       .illegal_instr_o ( illegal_c_insn           )
@@ -301,11 +305,11 @@ module ibex_if_stage #(
     );
 
     // Mux between actual instructions and dummy instructions
-    assign fetch_valid_out         = insert_dummy_instr | fetch_valid;
+    //assign fetch_valid_out         = insert_dummy_instr | if_instr_valid;
     assign instr_out               = insert_dummy_instr ? dummy_instr_data : instr_decompressed;
     assign instr_is_compressed_out = insert_dummy_instr ? 1'b0 : instr_is_compressed;
     assign illegal_c_instr_out     = insert_dummy_instr ? 1'b0 : illegal_c_insn;
-    assign instr_err_out           = insert_dummy_instr ? 1'b0 : fetch_err;
+    assign instr_err_out           = insert_dummy_instr ? 1'b0 : if_instr_err;
 
     // Stall the IF stage if we insert a dummy instruction. The dummy will execute between whatever
     // is currently in the ID stage and whatever is valid from the prefetch buffer this cycle. The
@@ -331,11 +335,11 @@ module ibex_if_stage #(
     assign unused_dummy_mask       = dummy_instr_mask_i;
     assign unused_dummy_seed_en    = dummy_instr_seed_en_i;
     assign unused_dummy_seed       = dummy_instr_seed_i;
-    assign fetch_valid_out         = fetch_valid;
+    //assign fetch_valid_out         = fetch_valid;
     assign instr_out               = instr_decompressed;
     assign instr_is_compressed_out = instr_is_compressed;
     assign illegal_c_instr_out     = illegal_c_insn;
-    assign instr_err_out           = fetch_err;
+    assign instr_err_out           = if_instr_err;
     assign stall_dummy_instr       = 1'b0;
     assign dummy_instr_id_o        = 1'b0;
   end
@@ -343,9 +347,9 @@ module ibex_if_stage #(
   // The ID stage becomes valid as soon as any instruction is registered in the ID stage flops.
   // Note that the current instruction is squashed by the incoming pc_set_i signal.
   // Valid is held until it is explicitly cleared (due to an instruction completing or an exception)
-  assign instr_valid_id_d = (fetch_valid_out & id_in_ready_i & ~pc_set_i) |
+  assign instr_valid_id_d = (if_instr_valid & id_in_ready_i & ~pc_set_i) |
                             (instr_valid_id_q & ~instr_valid_clear_i);
-  assign instr_new_id_d   = fetch_valid_out & id_in_ready_i;
+  assign instr_new_id_d   = if_instr_valid & id_in_ready_i;
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
@@ -371,7 +375,7 @@ module ibex_if_stage #(
       instr_rdata_alu_id_o     <= instr_out;
       instr_fetch_err_o        <= instr_err_out;
       instr_fetch_err_plus2_o  <= fetch_err_plus2;
-      instr_rdata_c_id_o       <= fetch_rdata[15:0];
+      instr_rdata_c_id_o       <= if_instr_rdata[15:0];
       instr_is_compressed_id_o <= instr_is_compressed_out;
       illegal_c_insn_id_o      <= illegal_c_instr_out;
       pc_id_o                  <= pc_if_o;
@@ -405,31 +409,88 @@ module ibex_if_stage #(
   end
 
   if (BranchPredictor) begin : g_branch_predictor
+    logic [31:0] instr_skid_data_q;
+    logic [31:0] instr_skid_addr_q;
+    logic        instr_skid_bp_taken_q;
+    logic        instr_skid_valid_q, instr_skid_valid_d;
+    logic        instr_skid_en;
+    logic        instr_bp_taken_q, instr_bp_taken_d;
+
+    logic        predict_branch_taken_raw;
+
     // ID stages needs to know if branch was predicted taken so it can signal mispredicts
     always_ff @(posedge clk_i) begin
       if (if_id_pipe_reg_we) begin
-        instr_bp_taken_o <= predict_branch_taken;
+        instr_bp_taken_q <= instr_bp_taken_d;
+      end
+    end
+
+    assign instr_skid_en = predicted_branch & ~id_in_ready_i & ~instr_skid_valid_q;
+
+    assign instr_skid_valid_d = (instr_skid_valid_q & ~id_in_ready_i & ~stall_dummy_instr) | instr_skid_en;
+
+    always_ff @(posedge clk_i or negedge rst_ni) begin
+      if (!rst_ni) begin
+        instr_skid_valid_q <= 1'b0;
+      end else begin
+        instr_skid_valid_q <= instr_skid_valid_d;
+      end
+    end
+
+    always_ff @(posedge clk_i) begin
+      if (instr_skid_en) begin
+        instr_skid_bp_taken_q <= predict_branch_taken;
+        instr_skid_data_q     <= fetch_rdata;
+        instr_skid_addr_q     <= fetch_addr;
       end
     end
 
     ibex_branch_predict branch_predict_i (
-      .clk_i                  ( clk_i                ),
-      .rst_ni                 ( rst_ni               ),
-      .fetch_rdata_i          ( fetch_rdata          ),
-      .fetch_pc_i             ( fetch_addr           ),
-      .fetch_valid_i          ( fetch_valid          ),
+      .clk_i                  ( clk_i                    ),
+      .rst_ni                 ( rst_ni                   ),
+      .fetch_rdata_i          ( fetch_rdata              ),
+      .fetch_pc_i             ( fetch_addr               ),
+      .fetch_valid_i          ( fetch_valid              ),
 
-      .predict_branch_taken_o ( predict_branch_taken ),
-      .predict_branch_pc_o    ( predict_branch_pc    )
+      .predict_branch_taken_o ( predict_branch_taken_raw ),
+      .predict_branch_pc_o    ( predict_branch_pc        )
     );
 
+    // If there is an instruction in the skid buffer there must be no branch prediction.
+    // Instructions are only placed in the skid after they have been predicted to be a taken branch
+    // so with the skid valid any prediction has already occurred.
+    // Do not branch predict on instruction errors.
+    assign predict_branch_taken = predict_branch_taken_raw & ~instr_skid_valid_q & ~fetch_err;
+
     // pc_set_i takes precendence over branch prediction
-    assign predicted_branch = predict_branch_taken && !pc_set_i;
+    assign predicted_branch = predict_branch_taken & ~pc_set_i;
+
+    assign if_instr_valid   = fetch_valid | instr_skid_valid_q;
+    assign if_instr_rdata   = instr_skid_valid_q ? instr_skid_data_q : fetch_rdata;
+    assign if_instr_addr    = instr_skid_valid_q ? instr_skid_addr_q : fetch_addr;
+
+    // Don't branch predict on instruction error so only instructions without errors end up in the
+    // skid buffer.
+    assign if_instr_err     = ~instr_skid_valid_q & fetch_err;
+    assign instr_bp_taken_d = instr_skid_valid_q ? instr_skid_bp_taken_q : predict_branch_taken;
+
+    assign fetch_ready = id_in_ready_i & ~stall_dummy_instr & ~instr_skid_valid_q;
+
+    assign instr_bp_taken_o = instr_bp_taken_q;
+
+    `ASSERT(NoPredictSkid, instr_skid_valid_q |-> ~predict_branch_taken);
+    `ASSERT(NoPredictIllegal, predict_branch_taken |-> ~illegal_c_insn);
   end else begin : g_no_branch_predictor
     assign instr_bp_taken_o     = 1'b0;
     assign predict_branch_taken = 1'b0;
     assign predicted_branch     = 1'b0;
     assign predict_branch_pc    = 32'b0;
+
+    assign if_instr_valid = fetch_valid;
+    assign if_instr_rdata = fetch_rdata;
+    assign if_instr_addr  = fetch_addr;
+    assign if_instr_err   = fetch_err;
+    assign fetch_ready = id_in_ready_i & ~stall_dummy_instr;
   end
 
   ////////////////
