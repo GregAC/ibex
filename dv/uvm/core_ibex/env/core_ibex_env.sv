@@ -12,6 +12,7 @@ class core_ibex_env extends uvm_env;
   irq_request_agent            irq_agent;
   core_ibex_vseqr             vseqr;
   core_ibex_env_cfg           cfg;
+  core_ibex_uarch_fcov        uarch_fcov;
 
   `uvm_component_utils(core_ibex_env)
   `uvm_component_new
@@ -28,6 +29,10 @@ class core_ibex_env extends uvm_env;
     irq_agent = irq_request_agent::type_id::create("irq_agent", this);
     // Create virtual sequencer
     vseqr = core_ibex_vseqr::type_id::create("vseqr", this);
+
+    if (cfg.enable_uarch_cov) begin
+      uarch_fcov = core_ibex_uarch_fcov::type_id::create("uarch_fcov", this);
+    end
   endfunction : build_phase
 
   function void connect_phase(uvm_phase phase);

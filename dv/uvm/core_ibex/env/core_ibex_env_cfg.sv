@@ -12,6 +12,7 @@ class core_ibex_env_cfg extends uvm_object;
   bit       require_signature_addr;
   string    signature_addr_str;
   bit[31:0] signature_addr;
+  bit       enable_uarch_cov;
 
   `uvm_object_utils_begin(core_ibex_env_cfg)
     `uvm_field_int(enable_irq_single_seq,   UVM_DEFAULT)
@@ -21,6 +22,7 @@ class core_ibex_env_cfg extends uvm_object;
     `uvm_field_int(max_interval, UVM_DEFAULT)
     `uvm_field_int(require_signature_addr, UVM_DEFAULT)
     `uvm_field_int(signature_addr, UVM_DEFAULT)
+    `uvm_field_int(enable_uarch_cov, UVM_DEFAULT)
   `uvm_object_utils_end
 
   function new(string name = "");
@@ -32,6 +34,7 @@ class core_ibex_env_cfg extends uvm_object;
     void'($value$plusargs("max_interval=%0d", max_interval));
     void'($value$plusargs("require_signature_addr=%0d", require_signature_addr));
     void'($value$plusargs("signature_addr=%s", signature_addr_str));
+    void'($value$plusargs("enable_uarch_cov=%0d", enable_uarch_cov));
     signature_addr = signature_addr_str.atohex();
   endfunction
 

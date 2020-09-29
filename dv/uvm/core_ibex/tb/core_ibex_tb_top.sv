@@ -29,6 +29,8 @@ module core_ibex_tb_top;
   // CSR access interface
   core_ibex_csr_if csr_if(.clk(clk));
 
+  core_ibex_uarch_fcov_if uarch_fcov_if(.clk(clk));
+
   // VCS does not support overriding enum and string parameters via command line. Instead, a
   // `define is used that can be set from the command line. If no value has been specified, this
   // gives a default. Other simulators don't take the detour via `define and can override the
@@ -154,6 +156,16 @@ module core_ibex_tb_top;
   assign csr_if.csr_rdata                     = dut.u_ibex_core.csr_rdata;
   assign csr_if.csr_op                        = dut.u_ibex_core.csr_op;
 
+  assign uarch_fcov_if.valid_if               = dut.u_ibex_core.if_stage_i.if_instr_valid;
+  assign uarch_fcov_if.valid_id               = dut.u_ibex_core.id_stage_i.instr_valid_i;
+  assign uarch_fcov_if.valid_wb               = dut.u_ibex_core.wb_stage_i.g_writeback_stage.wb_valid_q;
+  assign uarch_fcov_if.instr_id               = dut.u_ibex_core.id_stage_i.instr_rdata_i;
+  assign uarch_fcov_if.stall_id_ld_hz         = dut.u_ibex_core.id_stage_i.stall_ld_hz;
+  assign uarch_fcov_if.stall_id_mem           = dut.u_ibex_core.id_stage_i.stall_mem;
+  assign uarch_fcov_if.stall_id_multdiv       = dut.u_ibex_core.id_stage_i.stall_multdiv;
+  assign uarch_fcov_if.stall_id_branch        = dut.u_ibex_core.id_stage_i.stall_branch;
+  assign uarch_fcov_if.stall_id_jump          = dut.u_ibex_core.id_stage_i.stall_jump;
+
   initial begin
     // Drive the clock and reset lines. Reset everything and start the clock at the beginning of
     // time
@@ -169,6 +181,7 @@ module core_ibex_tb_top;
                                                             "instr_monitor_if",
                                                             instr_monitor_if);
     uvm_config_db#(virtual core_ibex_csr_if)::set(null, "*", "csr_if", csr_if);
+    uvm_config_db#(virtual core_ibex_uarch_fcov_if)::set(null, "*", "uarch_fcov_if", uarch_fcov_if);
     uvm_config_db#(virtual core_ibex_rvfi_if)::set(null, "*", "rvfi_if", rvfi_if);
     uvm_config_db#(virtual ibex_mem_intf)::set(null, "*data_if_response*", "vif", data_mem_vif);
     uvm_config_db#(virtual ibex_mem_intf)::set(null, "*instr_if_response*", "vif", instr_mem_vif);

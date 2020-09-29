@@ -13,6 +13,7 @@ package core_ibex_env_pkg;
   import irq_agent_pkg::*;
 
   `include "core_ibex_vseqr.sv"
+  `include "core_ibex_uarch_fcov.sv"
   `include "core_ibex_env_cfg.sv"
   `include "core_ibex_env.sv"
 
