@@ -101,6 +101,14 @@ parameters:
     paramtype: vlogparam
     description: "Number of PMP regions"
 
+  DV_FCOV:
+    datatype: bool
+    paramtype: vlogdefine
+
+  FCOV_TEST_ONLY:
+    datatype: bool
+    paramtype: vlogdefine
+
 targets:
   default: &default_target
     filesets:
@@ -114,6 +122,8 @@ targets:
     parameters:
       - RVFI=true
       - SYNTHESIS=true
+      - DV_FCOV=true
+      - FCOV_TEST_ONLY=true
       - RV32E
       - RV32M
       - RV32B

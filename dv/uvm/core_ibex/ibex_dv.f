@@ -7,9 +7,11 @@
 +define+BOOT_ADDR=2147483648 // 32'h8000_0000
 +define+TRACE_EXECUTION
 +define+RVFI
++define+DV_FCOV
 
 // Shared lowRISC code
 +incdir+${PRJ_DIR}/vendor/lowrisc_ip/prim/rtl
++incdir+${PRJ_DIR}/rtl/fcov_macro_test.svh
 ${PRJ_DIR}/vendor/lowrisc_ip/prim/rtl/prim_assert.sv
 ${PRJ_DIR}/vendor/lowrisc_ip/prim/rtl/prim_lfsr.sv
 ${PRJ_DIR}/vendor/lowrisc_ip/prim/rtl/prim_secded_28_22_enc.sv
@@ -81,7 +83,6 @@ ${PRJ_DIR}/dv/uvm/core_ibex/env/core_ibex_rvfi_if.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/env/core_ibex_csr_if.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/env/core_ibex_env_pkg.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/tests/core_ibex_test_pkg.sv
-${PRJ_DIR}/dv/uvm/core_ibex/fcov/core_ibex_fcov_pkg.sv
-${PRJ_DIR}/dv/uvm/core_ibex/fcov/core_ibex_fcov_ifs.sv
+${PRJ_DIR}/dv/uvm/core_ibex/fcov/core_ibex_fcov_if.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/fcov/core_ibex_fcov_bind.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/tb/core_ibex_tb_top.sv

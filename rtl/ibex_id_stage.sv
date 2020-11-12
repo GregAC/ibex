@@ -15,6 +15,7 @@
  */
 
 `include "prim_assert.sv"
+`include "fcov_macro_test.svh"
 
 module ibex_id_stage #(
     parameter bit               RV32E           = 0,
@@ -986,6 +987,17 @@ module ibex_id_stage #(
   assign perf_div_wait_o = stall_multdiv & div_en_dec;
 
   assign instr_id_done_compressed_o = instr_id_done_o & instr_is_compressed_i;
+
+  //////////
+  // FCOV //
+  //////////
+
+  `FCOV_SIGNAL_GEN_IF(logic, rf_rd_wb_hz,
+    (gen_stall_mem.rf_rd_a_hz | gen_stall_mem.rf_rd_b_hz) & instr_valid_i, WritebackStage)
+  `FCOV_SIGNAL(logic, branch_taken,
+    instr_executing & (id_fsm_q == FIRST_CYCLE) & branch_decision_i);
+  `FCOV_SIGNAL(logic, branch_not_taken,
+    instr_executing & (id_fsm_q == FIRST_CYCLE) & ~branch_decision_i);
 
   ////////////////
   // Assertions //
