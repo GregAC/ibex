@@ -517,4 +517,12 @@
   end
 `endif
 
+`ifndef DV_FCOV_SVA
+`define DV_FCOV_SVA(__ev_name, __sva, __clk = clk_i, __rst = rst_ni) \
+  event __ev_name; \
+  cover property (@(posedge __clk) disable iff (__rst == 0) (__sva)) begin \
+    -> __ev_name; \
+  end
+`endif
+
 `endif // __DV_MACROS_SVH__
