@@ -11,7 +11,6 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
   input priv_lvl_e priv_mode_lsu
 );
   `include "dv_macros.svh"
-  `include "dv_fcov.svh"
 
   typedef enum {
     InsnCategoryALU,
@@ -88,14 +87,6 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
    return IdStallTypeNone;
   endfunction
 
-`ifndef DV_FCOV_SVA
-`define DV_FCOV_SVA(__ev_name, __sva, __clk = clk_i, __rst = rst_ni) \
-  event __ev_name; \
-  cover property (@(posedge __clk) disable iff (__rst == 0) (__sva)) begin \
-    -> __ev_name; \
-  end
-`endif
-
   `DV_FCOV_SVA(instruction_unstalled,
     determine_id_stall_type() != IdStallTypeNone ##1 determine_id_stall_type() == IdStallTypeNone)
 
@@ -137,10 +128,5 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
     pipe_flush_instr_cross: cross cp_pipe_flush, cp_insn_category_id;
   endgroup
 
-  uarch_cg uarch_cg_inst;
-
-  initial begin
-    #0;
-    uarch_cg_inst = new();
-  end
+  `DV_INSTANTIATE_CG(uart_cg)
 endmodule
