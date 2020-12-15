@@ -6,6 +6,8 @@
 
 .section .text
 
+.weak default_exc_handler
+
 default_exc_handler:
   jal x0, simple_exc_handler
 

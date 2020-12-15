@@ -114,22 +114,36 @@ void pcount_enable(int enable) {
   asm volatile("csrw  0x320, %0\n" : : "r"(inhibit_val));
 }
 
-unsigned int get_mepc() {
+uint32_t get_mepc() {
   uint32_t result;
   __asm__ volatile("csrr %0, mepc;" : "=r"(result));
   return result;
 }
 
-unsigned int get_mcause() {
+uint32_t set_mepc(uint32_t new_mepc) {
+  asm volatile("csrw mepc, %0" :: "r"(new_mepc));
+}
+
+uint32_t get_mcause() {
   uint32_t result;
   __asm__ volatile("csrr %0, mcause;" : "=r"(result));
   return result;
 }
 
-unsigned int get_mtval() {
+uint32_t get_mtval() {
   uint32_t result;
   __asm__ volatile("csrr %0, mtval;" : "=r"(result));
   return result;
+}
+
+uint32_t get_mstatus() {
+  uint32_t result;
+  __asm__ volatile("csrr %0, mstatus;" : "=r"(result));
+  return result;
+}
+
+void set_mstatus(uint32_t new_mstatus) {
+  asm volatile("csrw mstatus, %0" :: "r"(new_mstatus));
 }
 
 void simple_exc_handler(void) {
@@ -145,6 +159,25 @@ void simple_exc_handler(void) {
   sim_halt();
 
   while(1);
+}
+
+void enter_umode(void) {
+  uint32_t mstatus = get_mstatus();
+
+  uint32_t mie = (mstatus >> 3) & 1;
+
+  // Set MPIE to MIE
+  mstatus = (mstatus & 0xFFFFFFBF) | (mie << 7);
+
+  // Set MPP to U-Mode (0)
+  mstatus = (mstatus & 0xFFFFF3FF);
+
+  set_mstatus(mstatus);
+  asm volatile(
+      "la t0, 1f\n"
+      "csrw mepc, t0\n"
+      "mret\n"
+      "1:\n");
 }
 
 volatile uint64_t time_elapsed;

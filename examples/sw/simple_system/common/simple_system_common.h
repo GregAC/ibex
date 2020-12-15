@@ -85,4 +85,27 @@ void timer_disable(void);
  */
 uint64_t get_elapsed_time(void);
 
+/**
+ * Dumps current exception information to simulator out log and halts
+ * simulation.
+ */
+void simple_exc_handler(void);
+
+/**
+ * returns MEPC CSR
+ */
+uint32_t get_mepc(void);
+
+/**
+ * returns MCAUSE CSR
+ */
+uint32_t get_mcause(void);
+
+/**
+ * returns MTVAL CSR
+ */
+uint32_t get_mtval(void);
+
+void enter_umode(void);
+
 #endif
