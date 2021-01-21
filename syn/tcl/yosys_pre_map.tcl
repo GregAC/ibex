@@ -6,4 +6,6 @@ source ./tcl/yosys_common.tcl
 
 yosys "read_liberty -lib $lr_synth_cell_library_path"
 yosys "read_verilog $lr_synth_pre_map_out"
-
+yosys "proc"
+yosys "dfflibmap -liberty $lr_synth_cell_library_path"
+yosys "cd ibex_core"

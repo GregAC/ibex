@@ -33,7 +33,7 @@ proc timing_report {path_group rpt_out path_count} {
   set sta_report_out_filename "${rpt_out}.rpt"
   set sta_csv_out_filename "${rpt_out}.csv.rpt"
 
-  puts "Reporting $path_group to $sta_report_out_filename and $sta_csv_out_filename"
+  puts "Reporting $path_group to $sta_report_out_filename and $sta_csv_out_filename with $path_count paths"
   report_checks -group_count $path_count -path_group $path_group > $sta_report_out_filename
 
   set paths [find_timing_paths -group_count $path_count -path_group $path_group]

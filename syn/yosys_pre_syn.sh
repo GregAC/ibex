@@ -32,7 +32,6 @@ for file in ../rtl/*.sv; do
     --define=SYNTHESIS \
     ../rtl/*_pkg.sv \
     -I../vendor/lowrisc_ip/ip/prim/rtl \
-    -I../dv/fcov \
     $file \
     > $LR_SYNTH_OUT_DIR/generated/${module}.v
 done
@@ -49,10 +48,4 @@ rm -f $LR_SYNTH_OUT_DIR/generated/ibex_tracer.v
 rm -f $LR_SYNTH_OUT_DIR/generated/ibex_register_file_latch.v
 rm -f $LR_SYNTH_OUT_DIR/generated/ibex_register_file_fpga.v
 
-yosys -c ./tcl/yosys_run_synth.tcl | tee ./$LR_SYNTH_OUT_DIR/log/syn.log
-
-sta ./tcl/sta_run_reports.tcl | tee ./$LR_SYNTH_OUT_DIR/log/sta.log
-
-./translate_timing_rpts.sh
-
-python/get_kge.py $LR_SYNTH_CELL_LIBRARY_PATH $LR_SYNTH_OUT_DIR/reports/area.rpt
+yosys -c ./tcl/yosys_pre_synth.tcl

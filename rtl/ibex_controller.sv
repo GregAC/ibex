@@ -239,8 +239,6 @@ module ibex_controller #(
   `ASSERT(SpecialReqBranchGivesSpecialReqAll,
     special_req_branch |-> special_req_all)
 
-  `ASSERT(SpecialReqAllGivesSpecialReqBranchIfBranchInst,
-    special_req_all && (branch_set_i || jump_set_i) |-> special_req_branch)
 
   // Exception/fault prioritisation is taken from Table 3.7 of Priviledged Spec v1.11
   if (WritebackStage) begin : g_wb_exceptions
@@ -502,26 +500,24 @@ module ibex_controller #(
           end
         end
 
-        if (!special_req_branch) begin
-          if (branch_set_i || jump_set_i) begin
-            // Only set the PC if the branch predictor hasn't already done the branch for us
-            pc_set_o       = BranchPredictor ? ~instr_bp_taken_i : 1'b1;
+        if (branch_set_i || jump_set_i) begin
+          // Only set the PC if the branch predictor hasn't already done the branch for us
+          pc_set_o       = BranchPredictor ? ~instr_bp_taken_i : 1'b1;
 
-            perf_tbranch_o = branch_set_i;
-            perf_jump_o    = jump_set_i;
-          end
+          perf_tbranch_o = branch_set_i;
+          perf_jump_o    = jump_set_i;
+        end
 
-          if (BranchPredictor) begin
-            if (instr_bp_taken_i & branch_not_set_i) begin
-              // If the instruction is a branch that was predicted to be taken but was not taken
-              // signal a mispredict.
-              nt_branch_mispredict_o = 1'b1;
-            end
+        if (BranchPredictor) begin
+          if (instr_bp_taken_i & branch_not_set_i) begin
+            // If the instruction is a branch that was predicted to be taken but was not taken
+            // signal a mispredict.
+            nt_branch_mispredict_o = 1'b1;
           end
         end
 
         // pc_set signal excluding branch taken condition
-        if ((branch_set_spec_i || jump_set_i) && !special_req_branch) begin
+        if (branch_set_spec_i || jump_set_i) begin
           // Only speculatively set the PC if the branch predictor hasn't already done the branch
           // for us
           pc_set_spec_o = BranchPredictor ? ~instr_bp_taken_i : 1'b1;
@@ -852,4 +848,28 @@ module ibex_controller #(
   // The speculative branch signal should be set whenever the actual branch signal is set
   `ASSERT(IbexSpecImpliesSetPC, pc_set_o |-> pc_set_spec_o)
 
+  `ifdef INC_ASSERT
+    logic instr_seen_special_req;
+    logic instr_doing_special_req;
+    logic instr_seen_csr_pipe_flush;
+
+    assign instr_doing_special_req = special_req_all & ~csr_pipe_flush;
+
+    always @(posedge clk_i or negedge rst_ni) begin
+      if (!rst_ni) begin
+        instr_seen_special_req    <= 1'b0;
+        instr_seen_csr_pipe_flush <= 1'b0;
+      end else begin
+        instr_seen_special_req <=
+          (instr_seen_special_req | instr_doing_special_req) & ~instr_valid_clear_o;
+        instr_seen_csr_pipe_flush <= (instr_seen_csr_pipe_flush | csr_pipe_flush) & ~instr_valid_clear_o;
+      end
+    end
+
+    `ASSERT(IbexSetExceptionPCOnSpecialReq,
+      instr_doing_special_req & instr_valid_clear_o |-> pc_set_o & (pc_mux_o != PC_JUMP));
+
+    `ASSERT(IbexNoImmediateInstrFlushOnSpecialReq, $rose(special_req_all) |-> ~instr_valid_clear_o);
+    `ASSERT(IbexNoPCSetWithCSRPipeFlush, csr_pipe_flush | instr_seen_csr_pipe_flush |-> ~pc_set_o);
+  `endif
 endmodule
