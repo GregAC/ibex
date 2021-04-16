@@ -573,6 +573,7 @@ module ibex_id_stage #(
       .exc_cause_o                    ( exc_cause_o             ),
 
       // LSU
+      .lsu_req_dec_i                  ( lsu_req_dec             ),
       .lsu_addr_last_i                ( lsu_addr_last_i         ),
       .load_err_i                     ( lsu_load_err_i          ),
       .store_err_i                    ( lsu_store_err_i         ),

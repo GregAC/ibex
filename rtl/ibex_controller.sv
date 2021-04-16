@@ -56,6 +56,7 @@ module ibex_controller #(
     output ibex_pkg::exc_cause_e  exc_cause_o,             // for IF stage, CSRs
 
     // LSU
+    input  logic                  lsu_req_dec_i,
     input  logic [31:0]           lsu_addr_last_i,         // for mtval
     input  logic                  load_err_i,
     input  logic                  store_err_i,
@@ -541,11 +542,11 @@ module ibex_controller #(
 
         // If entering debug mode or handling an IRQ the core needs to wait until any instruction in
         // ID or WB has finished executing. Stall IF during that time.
-        if ((enter_debug_mode || handle_irq) && (stall || id_wb_pending)) begin
+        if ((enter_debug_mode || handle_irq) && (stall /*|| id_wb_pending*/)) begin
           halt_if = 1'b1;
         end
 
-        if (!stall && !special_req && !id_wb_pending) begin
+        if (!stall && !special_req /*&& !id_wb_pending*/) begin
           if (enter_debug_mode) begin
             // enter debug mode
             ctrl_fsm_ns = DBG_TAKEN_IF;
@@ -811,12 +812,26 @@ module ibex_controller #(
   // signal to IF stage that ID stage is ready for next instr
   assign id_in_ready_o = ~stall & ~halt_if & ~retain_id;
 
+  logic allow_load_irq;
+
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      allow_load_irq <= 1'b0;
+    end else begin
+      if (handle_irq & lsu_req_dec_i & (~(stall | retain_id) | flush_id)) begin
+        allow_load_irq <= 1'b1;
+      end else begin
+        allow_load_irq <= 1'b0;
+      end
+    end
+  end
+
   // kill instr in IF-ID pipeline reg that are done, or if a
   // multicycle instr causes an exception for example
   // retain_id is another kind of stall, where the instr_valid bit must remain
   // set (unless flush_id is set also). It cannot be factored directly into
   // stall as this causes a combinational loop.
-  assign instr_valid_clear_o = ~(stall | retain_id) | flush_id;
+  assign instr_valid_clear_o = (~(stall | retain_id) | flush_id) & ~(handle_irq & lsu_req_dec_i & ~allow_load_irq);
 
   // update registers
   always_ff @(posedge clk_i or negedge rst_ni) begin : update_regs
