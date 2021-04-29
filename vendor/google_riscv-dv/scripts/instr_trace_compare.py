@@ -25,6 +25,62 @@ sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 
 from riscv_trace_csv import *
 
+def compare_trace_final_values(instr_trace_1, instr_trace_2, name1, name2, fd):
+    # Iterate through each trace applying GPR updates in order to determine
+    # the final values
+    trace_1_gprs = {}
+    trace_2_gprs = {}
+
+    for trace_entry in instr_trace_1:
+        check_update_gpr(trace_entry.gpr, trace_1_gprs)
+
+    for trace_entry in instr_trace_2:
+        check_update_gpr(trace_entry.gpr, trace_2_gprs)
+
+    # Produce a set of all GPR names mentioned in either trace
+    trace_1_gpr_name_set = set(trace_1_gprs.keys())
+    trace_2_gpr_name_set = set(trace_2_gprs.keys())
+
+    all_gpr_names = trace_1_gpr_name_set | trace_2_gpr_name_set
+
+    matched_cnt = 0
+    mismatch_cnt = 0
+
+    # Iterate through all seen GPR names and check both traces have matching
+    # values, generating a mismatch message where values dont match or if only
+    # one trace has a value for a particular GPR name.
+    for gpr_name in all_gpr_names:
+        if gpr_name in trace_1_gprs and gpr_name in trace_2_gprs:
+            if trace_1_gprs[gpr_name] != trace_2_gprs[gpr_name]:
+                mismatch_cnt += 1
+
+                fd.write("Mismatch[{}]:\n".format(mismatch_cnt))
+                fd.write("{} : {} = {}\n".format(name1, gpr_name,
+                        trace_1_gprs[gpr_name]))
+                fd.write("{} : {} = {}\n".format(name2, gpr_name,
+                        trace_2_gprs[gpr_name]))
+            else:
+                matched_cnt += 1
+        elif gpr_name in trace_1_gprs:
+            mismatch_cnt += 1
+
+            fd.write("Mismatch[{}]:\n".format(mismatch_cnt))
+            fd.write("{} : {} = {}\n".format(name1, gpr_name,
+                    trace_1_gprs[gpr_name]))
+            fd.write("{} : {} not found\n".format(name2, gpr_name))
+        else:
+            # As name set was generated from trace_1_gprs and trace_2_gprs keys
+            # each gpr_name must be in either trace_1_gprs or trace_2_gprs
+            assert gpr_name in trace_2_gprs
+            mismatch_cnt += 1
+
+            fd.write("Mismatch[{}]:\n".format(mismatch_cnt))
+            fd.write("{} : {} not found\n".format(name1, gpr_name))
+            fd.write("{} : {} = {}\n".format(name2, gpr_name,
+                    trace_2_gprs[gpr_name]))
+
+    return (matched_cnt, mismatch_cnt)
+
 
 def compare_trace_csv(csv1, csv2, name1, name2, log,
                       in_order_mode=1,
@@ -35,10 +91,6 @@ def compare_trace_csv(csv1, csv2, name1, name2, log,
     """Compare two trace CSV file"""
     matched_cnt = 0
     mismatch_cnt = 0
-
-    # ensure that in order mode is disabled if necessary
-    if compare_final_value_only:
-        in_order_mode = 0
 
     if log:
         fd = open(log, 'a+')
@@ -59,7 +111,11 @@ def compare_trace_csv(csv1, csv2, name1, name2, log,
         trace_2_index = 0
         mismatch_cnt = 0
         matched_cnt = 0
-        if in_order_mode:
+
+        if compare_final_value_only:
+            matched_cnt, mismatch_cnt = compare_trace_final_values(
+                    instr_trace_1, instr_trace_2, name1, name2, fd)
+        elif in_order_mode:
             gpr_val_1 = {}
             gpr_val_2 = {}
             for trace in instr_trace_1:

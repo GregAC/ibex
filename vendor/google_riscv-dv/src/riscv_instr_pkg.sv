@@ -1260,11 +1260,14 @@ package riscv_instr_pkg;
       end
     end
     // Reserve space from kernel stack to save all 32 GPR except for x0
-    instr.push_back($sformatf("1: addi x%0d, x%0d, -%0d", sp, sp, 31 * (XLEN/8)));
+    instr.push_back($sformatf("1: addi x%0d, x%0d, -%0d", sp, sp, 32 * (XLEN/8)));
     // Push all GPRs to kernel stack
     for(int i = 1; i < 32; i++) begin
       instr.push_back($sformatf("%0s  x%0d, %0d(x%0d)", store_instr, i, i * (XLEN/8), sp));
     end
+
+    instr.push_back($sformatf("csrrs x%0d, 0x%0x, x%0d", T0, scratch, ZERO));
+    instr.push_back($sformatf("%0s  x%0d, %0d(x%0d)", store_instr, T0, 32 * (XLEN/8), sp));
   endfunction
 
   // Pop general purpose register from stack, this is needed before returning to user program
@@ -1276,11 +1279,14 @@ package riscv_instr_pkg;
                                                     ref string instr[$]);
     string load_instr = (XLEN == 32) ? "lw" : "ld";
     // Pop user mode GPRs from kernel stack
+    instr.push_back($sformatf("%0s  x%0d, %0d(x%0d)", load_instr, T0, 32 * (XLEN/8), sp));
+    instr.push_back($sformatf("csrrw x%0d, 0x%0x, x%0d", ZERO, scratch, T0));
+
     for(int i = 1; i < 32; i++) begin
       instr.push_back($sformatf("%0s  x%0d, %0d(x%0d)", load_instr, i, i * (XLEN/8), sp));
     end
     // Restore kernel stack pointer
-    instr.push_back($sformatf("addi x%0d, x%0d, %0d", sp, sp, 31 * (XLEN/8)));
+    instr.push_back($sformatf("addi x%0d, x%0d, %0d", sp, sp, 32 * (XLEN/8)));
     if (scratch inside {implemented_csr}) begin
       // Move SP to TP
       instr.push_back($sformatf("add x%0d, x%0d, zero", tp, sp));

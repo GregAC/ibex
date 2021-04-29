@@ -155,13 +155,16 @@ class core_ibex_base_test extends uvm_test;
           // The very first write to the signature address in every test is guaranteed to be a write
           // of CORE_STATUS, indicating the INITIALIZED state
           CORE_STATUS: begin
+            `uvm_info(`gfn, "Woo core status", UVM_LOW)
             signature_data_q.push_back(signature_data >> 8);
           end
           TEST_RESULT: begin
+            `uvm_info(`gfn, "Woo Test result", UVM_LOW)
             signature_data_q.push_back(signature_data >> 8);
           end
           // The next 32 writes to the address are guaranteed to be a dump of all GPRs
           WRITE_GPR: begin
+            `uvm_info(`gfn, "Woo GPR write", UVM_LOW)
             for(int i = 0; i < 32; i++) begin
               do begin
                 item_collected_port.get(mem_txn);
@@ -171,6 +174,7 @@ class core_ibex_base_test extends uvm_test;
           end
           // The next write to this address is guaranteed to be the data held in the CSR
           WRITE_CSR: begin
+            `uvm_info(`gfn, "Woo csr write", UVM_LOW)
             signature_data_q.push_back(signature_data >> 8);
             do begin
               item_collected_port.get(mem_txn);
