@@ -10,7 +10,12 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
 
   input priv_lvl_e priv_mode_id,
   input priv_lvl_e priv_mode_if,
-  input priv_lvl_e priv_mode_lsu
+  input priv_lvl_e priv_mode_lsu,
+
+  input debug_mode,
+
+  input fcov_csr_rd_only,
+  input fcov_csr_wr
 );
   `include "dv_fcov_macros.svh"
   import uvm_pkg::*;
@@ -23,7 +28,6 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
     InstrCategoryJump,
     InstrCategoryLoad,
     InstrCategoryStore,
-    InstrCategoryOther,
     InstrCategoryCSRAccess,
     InstrCategoryEBreakDbg,
     InstrCategoryEBreakExc,
@@ -37,7 +41,12 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
     InstrCategoryCompressedIllegal,
     InstrCategoryUncompressedIllegal,
     InstrCategoryCSRIllegal,
-    InstrCategoryOtherIllegal
+    InstrCategoryPrivIllegal,
+    InstrCategoryOtherIllegal,
+    // Category not in coverage plan, it should never be seen. An instruction given the Other
+    // category should either be classfied under an existing category or a new category created as
+    // appropriate.
+    InstrCategoryOther
   } instr_category_e;
 
   typedef enum {
@@ -115,9 +124,17 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
       end else if (id_stage_i.illegal_insn_dec) begin
         id_instr_category = InstrCategoryUncompressedIllegal;
       end else if (id_stage_i.illegal_csr_insn_i) begin
-        id_instr_category = InstrCategoryCSRIllegal;
+        if (cs_registers_i.illegal_csr_priv || cs_registers_i.illegal_csr_dbg) begin
+          id_instr_category = InstrCategoryPrivIllegal;
+        end else begin
+          id_instr_category = InstrCategoryCSRIllegal;
+        end
       end else if (id_stage_i.illegal_insn_o) begin
-        id_instr_category = InstrCategoryOtherIllegal;
+        if (id_stage_i.illegal_dret_insn || id_stage_i.illegal_umode_insn) begin
+          id_instr_category = InstrCategoryPrivIllegal;
+        end else begin
+          id_instr_category = InstrCategoryOtherIllegal;
+        end
       end
     end else begin
       id_instr_category = InstrCategoryNone;
@@ -200,6 +217,63 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
     end
   end
 
+  // IF specific state enum
+  typedef enum {
+    IFStageFullAndFetching,
+    IFStageFullAndIdle,
+    IFStageEmptyAndFetching,
+    IFStageEmptyAndIdle
+  } if_stage_state_e;
+
+  // ID/EX and WB have the same state enum
+  typedef enum {
+    PipeStageFullAndStalled,
+    PipeStageFullAndUnstalled,
+    PipeStageEmpty
+  } pipe_stage_state_e;
+
+  if_stage_state_e   if_stage_state;
+  pipe_stage_state_e id_stage_state;
+  pipe_stage_state_e wb_stage_state;
+
+  always_comb begin
+    if_stage_state = IFStageEmptyAndIdle;
+
+    if (if_stage_i.if_instr_valid) begin
+      if (if_stage_i.req_i) begin
+        if_stage_state = IFStageFullAndFetching;
+      end else begin
+        if_stage_state = IFStageFullAndIdle;
+      end
+    end else if(if_stage_i.req_i) begin
+      if_stage_state = IFStageEmptyAndFetching;
+    end
+  end
+
+  always_comb begin
+    id_stage_state = PipeStageEmpty;
+
+    if (id_stage_i.instr_valid_i) begin
+      if (id_stage_i.id_in_ready_o) begin
+        id_stage_state = PipeStageFullAndUnstalled;
+      end else begin
+        id_stage_state = PipeStageFullAndStalled;
+      end
+    end
+  end
+
+  always_comb begin
+    wb_stage_state = PipeStageEmpty;
+
+    if (wb_stage_i.fcov_wb_valid) begin
+      if (wb_stage_i.ready_wb_o) begin
+        wb_stage_state = PipeStageFullAndUnstalled;
+      end else begin
+        wb_stage_state = PipeStageFullAndStalled;
+      end
+    end
+  end
+
   logic            instr_unstalled;
   logic            instr_unstalled_last;
   logic            id_stall_type_last_valid;
@@ -233,9 +307,8 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
     cp_instr_category_id: coverpoint id_instr_category;
     cp_stall_type_id: coverpoint id_stall_type;
 
-    cp_wb_reg_hz: coverpoint id_stage_i.fcov_rf_rd_wb_hz;
-    cp_wb_load_hz: coverpoint id_stage_i.fcov_rf_rd_wb_hz &&
-                              wb_stage_i.outstanding_load_wb_o;
+    cp_wb_reg_no_load_hz: coverpoint id_stage_i.fcov_rf_rd_wb_hz &&
+                                     !wb_stage_i.outstanding_load_wb_o;
 
     cp_ls_error_exception: coverpoint load_store_unit_i.fcov_ls_error_exception;
     cp_ls_pmp_exception: coverpoint load_store_unit_i.fcov_ls_pmp_exception;
@@ -253,8 +326,18 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
       illegal_bins illegal = {PRIV_LVL_H, PRIV_LVL_S};
     }
 
+    cp_if_stage_state : coverpoint if_stage_state;
+    cp_id_stage_state : coverpoint id_stage_state;
+    cp_wb_stage_state : coverpoint wb_stage_state;
+
     cp_irq_pending: coverpoint id_stage_i.irq_pending_i | id_stage_i.irq_nm_i;
     cp_debug_req: coverpoint id_stage_i.controller_i.fcov_debug_req;
+
+    cp_csr_rd_only: coverpoint cs_registers_i.csr_addr_i iff (fcov_csr_rd_only);
+    cp_csr_wr: coverpoint cs_registers_i.csr_addr_i iff (fcov_csr_wr);
+    cp_csr_access: coverpoint cs_registers_i.csr_addr_i iff (fcov_csr_rd_only || fcov_csr_wr);
+
+    cp_debug_mode: coverpoint debug_mode;
 
     `DV_FCOV_EXPR_SEEN(interrupt_taken, id_stage_i.controller_i.fcov_interrupt_taken)
     `DV_FCOV_EXPR_SEEN(debug_entry_if, id_stage_i.controller_i.fcov_debug_entry_if)
@@ -278,7 +361,7 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
          binsof(cp_stall_type_id) intersect {IdStallTypeLdHz});
     }
 
-    wb_reg_hz_instr_cross: cross cp_instr_category_id, cp_wb_reg_hz;
+    wb_reg_no_load_hz_instr_cross: cross cp_instr_category_id, cp_wb_reg_no_load_hz;
 
     pipe_cross: cross cp_instr_category_id, if_stage_i.if_instr_valid,
                       wb_stage_i.fcov_wb_valid;
@@ -306,12 +389,15 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
                                                  InstrCategoryStore, InstrCategoryCSRAccess} &&
          binsof(cp_stall_type_id) intersect {IdStallTypeLdHz});
     }
+
+    csr_access_priv_cross: cross cp_csr_access, cp_priv_mode_id;
+    csr_access_debug_cross: cross cp_csr_access, cp_debug_mode;
   endgroup
 
   bit en_uarch_cov;
 
   initial begin
-   void'($value$plusargs("enable_uarch_cov=%d", en_uarch_cov));
+   void'($value$plusargs("enable_ibex_fcov=%d", en_uarch_cov));
   end
 
   `DV_FCOV_INSTANTIATE_CG(uarch_cg, en_uarch_cov)

@@ -32,6 +32,8 @@ Instructions
 
 Categories
 """"""""""
+``cp_instr_category_id``
+
 Instructions can be grouped into a number of categories.
 Each category exercises different data and control paths in the core.
 For example the ``ADD`` and ``SUB`` instructions are in the same category as they are almost identical for the microarchitecture (both read two registers and write to one, both feed operands to the ALU and take their result from it, both have the same response to interrupts etc; the only difference is the ALU operation).
@@ -70,6 +72,8 @@ Some categories are just a single instruction, which is named without further de
 
 Stalls
 """"""
+``cp_stall_type_id``
+
 Not all instructions can see all kinds of stalls.
 A stall category is sampled at the ID/EX stage only (as stalls in IF and WB don't break down into categories).
 
@@ -100,9 +104,9 @@ Privilege Level
 Ibex can operate at either the M (machine) or U (user) privilege levels.
 Different aspects of the Ibex microarchitecture can be using different privilege levels at once.
 
-* Privilege level of IF stage instruction.
-* Privilege level of ID/EX stage instruction.
-* Privilege level of LSU operation (ID/EX privilege level modified by ``mstatus.mprv`` and ``mstatus.mpp`` settings).
+* ``cp_priv_mode_if`` - Privilege level of IF stage instruction.
+* ``cp_priv_mode_id`` - Privilege level of ID/EX stage instruction.
+* ``cp_priv_mode_lsu`` - Privilege level of LSU operation (ID/EX privilege level modified by ``mstatus.mprv`` and ``mstatus.mpp`` settings).
 
 Note that the privilege level of the instruction in WB isn't retained by the microarchitecture and is not relevant to coverage.
 Any instruction that reaches WB can be considered bound to retire and any relevant checks and functionality altered by the privilege mode is dealt with at an earlier stage.
@@ -112,9 +116,14 @@ Hazards
 Ibex hazards all occur in the interaction between the ID and EX stage.
 
 * RAW Reg - Read after write hazard, instruction in ID/EX reads a register that writeback is writing.
-  Handled with data forwarding and no stall.
-* RAW Load - Read after write hazard when reading from load destination, a special case of RAW Reg above.
-  Produces a stall (Category LdHz) and shouldn't forward data.
+  Split into two versions:
+
+  * RAW load - Instruction in ID/EX reading from destination of load in writeback.
+    Produces a stall (Category LdHz) and shouldn't forward data.
+    Covered by ``cp_stall_type_id``
+  * ``cp_wb_reg_no_load_hz`` - Instruction in writeback isn't a load.
+    Handled with data forwarding and no stall.
+
 * RAW Load/Store bytes - Load with bytes overlapping a store immediately before it.
 
 State Specific Behaviour
@@ -153,13 +162,10 @@ Pipeline State
 ^^^^^^^^^^^^^^
 Each pipeline stage has some associated state.
 
-* IF stage awaiting fetch, full, or idle.
-  General IF stage full and stalled uninteresting as will only occur when ID
-  stage is full and stalled.
-* WB stage full and stalled, full and unstalled, or empty
-* ID stage full and stalled, full and unstalled, or empty.
-  This is effectively covered by instruction categories and stalled categories.
-  An instruction category of **None** means the stage is empty.
+* ``cp_if_stage_state`` - IF stage full and fetching, full and idle, empty and fetching, or empty and idle.
+  General IF stage full and stalled uninteresting as will only occur when ID stage is full and stalled.
+* ``cp_wb_stage_state`` - WB stage full and stalled, full and unstalled, or empty
+* ``cp_id_stage_state`` - ID stage full and stalled, full and unstalled, or empty.
 * Controller (within ID stage) state machine states
 
   * Possible transitions between these states.
@@ -208,21 +214,21 @@ Furthermore they can all occur together and must be appropriately prioritised (c
 
 PMP
 ^^^
-* Each region configured with different matching modes.
+* ``cp_region_mode`` - Each region configured with different matching modes.
 
   * Off
   * TOR
   * NA4
   * NAPOT
 
-* Each region configured with all possible permissions including locked/unlocked.
+* ``cp_region_priv_bits`` - Each region configured with all possible permissions including locked/unlocked.
 
   * Different permissions with MML enabled and disabled, separate cover points for R/W/X/L values with and without MML.
 
 * Access fail & pass.
 
   * All combinations of unaligned access split across a boundary, both halves pass, neither pass, just the first passes, just the second passes.
-  * Higher priority entry allows access that lower priority entry prevents.
+  * ``cp_pmp_iside_region_override`` /  ``cp_pmp_dside_region_override`` - Higher priority entry allows access that lower priority entry prevents.
   * Compressed instruction access (16-bit) passes PMP but 32-bit access at same address crosses PMP region boundary.
 
 * Each field of mssecfg enabled/disabled with relevant functionality tested.
@@ -241,19 +247,27 @@ PMP
 
     * Try to disable when enabled.
 
-  * Access close to PMP region modification that allows/disallows that access.
+* Access close to PMP region modification that allows/disallows that access.
+
+TODO: Different behaviours for misaligned access crossing boundary depending on
+whether both sides are in the same region or not.
 
 CSRs
 ^^^^
 Basic read/write functionality must be tested on all implemented CSRs.
 
-* Read from CSR.
-* Write to CSR.
+* ``cp_csr_read_only`` - Read from CSR.
+* ``cp_csr_wr`` -  Write to CSR.
 
   * Write to read only CSR.
+    Covered by ensuring ``cp_csr_wr`` is seen for read-only CSRs
 
 * Write illegal/unsupported value to WARL field.
-* Access to CSR disallowed due to privilege level/debug mode.
+* ``csr_access_priv_cross`` / ``csr_access_debug_cross`` - Access to CSR from different privilege levels/debug mode.
+
+  * Access to CSR disallowed due to privilege levels/debug mode
+    Covered by ensuring ``csr_access_priv_cross`` / ``csr_access_debug_cross`` for such illegal accesses
+
 * Read and write from/to an unimplemented CSR
 
 CSRs addresses do not need to be crossed with the variety of CSR instructions as these all use the same basic read & write interface into ``ibex_cs_registers``.
@@ -282,8 +296,9 @@ Excluded bins will either become illegal bins (where they are impossible to hit,
 There must be a documented reason a particular bin is added to the illegal or ignore bins.
 
 * All combinations of privilege levels across IF, ID/EX and LSU
-* Pipeline stage states across IF, ID/EX and WB x Instruction Categories
+* Instruction Categories x Pipeline stage states across IF, ID/EX and WB
 
+  * Covers all possibilities of instruction combinations that could fill the pipeline. State only for IF/WB suffices to cover this as all the interesting per instruction behaviour occurs in ID/EX.
   * All bins containing instruction categories other than **None** ignored when ID/EX stage is empty.
 
 * Instructions Categories x ID/EX Privilege level
@@ -294,9 +309,6 @@ There must be a documented reason a particular bin is added to the illegal or ig
 * Instruction Categories x Hazards
 * Instruction Categories x Debug Mode
 * Instruction Categories x IF/WB full or empty
-
-  * Covers all possibilities of instruction combinations that could fill the pipeline. Full/empty for IF/WB suffices to cover this as all the interesting per instruction behaviour occurs in ID/EX.
-
 * Instruction Categories x Controller state transitions of interest
 * Interrupt taken/Debug mode entry/Pipe flush x instruction unstalled x instruction category
 
@@ -307,4 +319,6 @@ There must be a documented reason a particular bin is added to the illegal or ig
 
   * Large cross to cover all possibilities of combinations between interrupt, debug and exceptions for all instruction categories across all stall behaviours.
 
-* PMP regions x permissions x access fail/pass
+* PMP regions x permissions x access fail/pass x privilege level
+
+  * Two crosses, one for each PMP channel (instruction and data).

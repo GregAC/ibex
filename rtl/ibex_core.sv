@@ -8,6 +8,7 @@
 `endif
 
 `include "prim_assert.sv"
+`include "dv_fcov_macros.svh"
 
 /**
  * Top level module of the ibex RISC-V core
@@ -1407,4 +1408,25 @@ module ibex_core import ibex_pkg::*; #(
   // Certain parameter combinations are not supported
   `ASSERT_INIT(IllegalParamSecure, !(SecureIbex && (RV32M == RV32MNone)))
 
+
+  //////////
+  // FCOV //
+  //////////
+
+  // fcov signals for CSR access. These are complicated by illegal accesses. Where an access is
+  // legal `csr_op_en` signals the operation occurring, but this is deasserted where an access is
+  // illegal. Instead `illegal_insn_id` confirms the instruction is taking an illegal instruction
+  // exception.
+  // All CSR operations perform a read, `CSR_OP_READ` is the only one that only performs a read
+  `DV_FCOV_SIGNAL(logic, csr_rd_only,
+      (csr_op == CSR_OP_READ) && csr_access && (csr_op_en || illegal_insn_id))
+  `DV_FCOV_SIGNAL(logic, csr_wr,
+      cs_registers_i.csr_wr && csr_access && (csr_op_en || illegal_insn_id))
+
+  for (genvar i_region = 0; i_region < PMPNumRegions; i_region += 1) begin : g_pmp_fcov_signals
+    `DV_FCOV_SIGNAL(logic, pmp_region_ichan_access,
+        g_pmp.pmp_i.region_match_all[PMP_I][i_region] & instr_req_out)
+    `DV_FCOV_SIGNAL(logic, pmp_region_dchan_access,
+        g_pmp.pmp_i.region_match_all[PMP_D][i_region] & data_req_out)
+  end
 endmodule
