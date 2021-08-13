@@ -132,6 +132,7 @@ unsigned int get_mtval() {
   return result;
 }
 
+void simple_exc_handler(void) __attribute__((interrupt));
 void simple_exc_handler(void) {
   puts("EXCEPTION!!!\n");
   puts("============\n");
@@ -142,9 +143,6 @@ void simple_exc_handler(void) {
   puts("\nMTVAL:  0x");
   puthex(get_mtval());
   putchar('\n');
-  sim_halt();
-
-  while(1);
 }
 
 volatile uint64_t time_elapsed;

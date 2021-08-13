@@ -125,8 +125,24 @@ module ibex_simple_system (
     end
   `endif
 
+  logic force_err_d, force_err_q, force_err_seen;
+
+  assign force_err_d = (device_addr[Ram] == 32'h1004e8) && device_req[Ram] && !force_err_seen;
+
+  always @(posedge IO_CLK or negedge IO_RST_N) begin
+    if (!IO_RST_N) begin
+      force_err_q    <= 1'b0;
+      force_err_seen <= 1'b0;
+    end else begin
+      force_err_q <= force_err_d;
+      if (force_err_d) begin
+        force_err_seen <= 1'b1;
+      end
+    end
+  end
+
   // Tie-off unused error signals
-  assign device_err[Ram] = 1'b0;
+  assign device_err[Ram] = force_err_q;
   assign device_err[SimCtrl] = 1'b0;
 
   bus #(
@@ -294,22 +310,13 @@ module ibex_simple_system (
     cosim_handle = get_spike_cosim();
   end
 
-  logic [31:0] ibex_mip;
   logic [31:0] insn_cnt;
-
-  always_comb begin
-    ibex_mip = '0;
-    ibex_mip[ibex_pkg::CSR_MSIX_BIT] = u_top.rvfi_ext_mip.irq_software;
-    ibex_mip[ibex_pkg::CSR_MTIX_BIT] = u_top.rvfi_ext_mip.irq_timer;
-    ibex_mip[ibex_pkg::CSR_MEIX_BIT] = u_top.rvfi_ext_mip.irq_external;
-    ibex_mip[ibex_pkg::CSR_MFIX_BIT_HIGH:ibex_pkg::CSR_MFIX_BIT_LOW] = u_top.rvfi_ext_mip.irq_fast;
-  end
 
   always @(posedge IO_CLK or negedge IO_RST_N) begin
     if (!IO_RST_N) begin
       insn_cnt <= '0;
     end else if (u_top.rvfi_valid & !u_top.rvfi_trap) begin
-      riscv_cosim_set_mip(cosim_handle, ibex_mip);
+      riscv_cosim_set_mip(cosim_handle, u_top.rvfi_ext_mip);
       riscv_cosim_set_debug_req(cosim_handle, u_top.rvfi_ext_debug_req);
       if (riscv_cosim_step(cosim_handle, u_top.rvfi_rd_addr, u_top.rvfi_rd_wdata,
                            u_top.rvfi_pc_rdata) == 0)
@@ -322,6 +329,33 @@ module ibex_simple_system (
       end
 
       insn_cnt <= insn_cnt + 1'b1;
+    end
+  end
+
+  //logic outstanding_load;
+  logic outstanding_store;
+  logic [31:0] outstanding_addr;
+  logic [3:0] outstanding_be;
+  logic [31:0] outstanding_store_data;
+  logic outstanding_misaligned;
+
+  always @(posedge IO_CLK or negedge IO_RST_N) begin
+    if (!IO_RST_N) begin
+      //outstanding_load <= 1'b0;
+      outstanding_store <= 1'b0;
+    end else begin
+      if (host_req[CoreD] && host_gnt[CoreD]) begin
+        //outstanding_load       <= ~host_we[CoreD];
+        outstanding_store      <= host_we[CoreD];
+        outstanding_addr       <= host_addr[CoreD];
+        outstanding_be         <= host_be[CoreD];
+        outstanding_store_data <= host_wdata[CoreD];
+        outstanding_misaligned <= u_top.u_ibex_top.u_ibex_core.load_store_unit_i.addr_incr_req_o | u_top.u_ibex_top.u_ibex_core.load_store_unit_i.handle_misaligned_d;
+      end
+
+      if (host_rvalid[CoreD]) begin
+        riscv_cosim_notify_dside_access(cosim_handle, outstanding_store, outstanding_addr, outstanding_store ? outstanding_store_data : host_rdata[CoreD], outstanding_be, host_err[CoreD], outstanding_misaligned);
+      end
     end
   end
 endmodule

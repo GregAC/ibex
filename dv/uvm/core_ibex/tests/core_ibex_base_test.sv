@@ -6,6 +6,7 @@ class core_ibex_base_test extends uvm_test;
 
   core_ibex_env                                   env;
   core_ibex_env_cfg                               cfg;
+  core_ibex_cosim_cfg                             cosim_cfg;
   virtual clk_rst_if                              clk_vif;
   virtual core_ibex_dut_probe_if                  dut_vif;
   virtual core_ibex_instr_monitor_if              instr_vif;
@@ -55,6 +56,12 @@ class core_ibex_base_test extends uvm_test;
     end
     env = core_ibex_env::type_id::create("env", this);
     cfg = core_ibex_env_cfg::type_id::create("cfg", this);
+
+    cosim_cfg = core_ibex_cosim_cfg::type_id::create("cosim_cfg", this);
+    cosim_cfg.start_pc = {{32'h`BOOT_ADDR}[31:8], 8'h80};
+    cosim_cfg.start_mtvec = {{32'h`BOOT_ADDR}[31:8], 8'h1};
+    uvm_config_db#(core_ibex_cosim_cfg)::set(null, "*cosim_agent*", "cosim_cfg", cosim_cfg);
+
     uvm_config_db#(core_ibex_env_cfg)::set(this, "*", "cfg", cfg);
     mem = mem_model_pkg::mem_model#()::type_id::create("mem");
     // Create virtual sequence and assign memory handle
@@ -116,6 +123,7 @@ class core_ibex_base_test extends uvm_test;
     while ($fread(r8,f_bin)) begin
       `uvm_info(`gfn, $sformatf("Init mem [0x%h] = 0x%0h", addr, r8), UVM_FULL)
       mem.write(addr, r8);
+      env.cosim_agent.write_mem_byte(addr, r8);
       addr++;
     end
   endfunction
@@ -151,9 +159,9 @@ class core_ibex_base_test extends uvm_test;
     forever begin
       // The first write to this address is guaranteed to contain the signature type in bits [7:0]
       item_collected_port.get(mem_txn);
-      if (mem_txn.addr == ref_addr && mem_txn.data[7:0] === ref_type &&
+      if (mem_txn.addr == ref_addr && mem_txn.wdata[7:0] === ref_type &&
           mem_txn.read_write == WRITE) begin
-        signature_data = mem_txn.data;
+        signature_data = mem_txn.wdata;
         case (ref_type)
           // The very first write to the signature address in every test is guaranteed to be a write
           // of CORE_STATUS, indicating the INITIALIZED state
@@ -169,7 +177,7 @@ class core_ibex_base_test extends uvm_test;
               do begin
                 item_collected_port.get(mem_txn);
               end while(!(mem_txn.addr == ref_addr && mem_txn.read_write == WRITE));
-              signature_data_q.push_back(mem_txn.data);
+              signature_data_q.push_back(mem_txn.wdata);
             end
           end
           // The next write to this address is guaranteed to be the data held in the CSR
@@ -178,7 +186,7 @@ class core_ibex_base_test extends uvm_test;
             do begin
               item_collected_port.get(mem_txn);
             end while (!(mem_txn.addr == ref_addr && mem_txn.read_write == WRITE));
-            signature_data_q.push_back(mem_txn.data);
+            signature_data_q.push_back(mem_txn.wdata);
           end
           default: begin
             `uvm_fatal(`gfn,

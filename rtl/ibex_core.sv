@@ -126,7 +126,7 @@ module ibex_core import ibex_pkg::*; #(
     output logic [ 3:0]                  rvfi_mem_wmask,
     output logic [31:0]                  rvfi_mem_rdata,
     output logic [31:0]                  rvfi_mem_wdata,
-    output irqs_t                        rvfi_ext_mip,
+    output logic [31:0]                  rvfi_ext_mip,
     output logic                         rvfi_ext_debug_req,
 `endif
 
@@ -342,40 +342,6 @@ module ibex_core import ibex_pkg::*; #(
 
   // for RVFI
   logic        illegal_insn_id, unused_illegal_insn_id; // ID stage sees an illegal instruction
-
-  // RISC-V Formal Interface signals
-`ifdef RVFI
-  logic        rvfi_instr_new_wb;
-  logic        rvfi_intr_d;
-  logic        rvfi_intr_q;
-  logic        rvfi_set_trap_pc_d;
-  logic        rvfi_set_trap_pc_q;
-  logic [31:0] rvfi_insn_id;
-  logic [4:0]  rvfi_rs1_addr_d;
-  logic [4:0]  rvfi_rs1_addr_q;
-  logic [4:0]  rvfi_rs2_addr_d;
-  logic [4:0]  rvfi_rs2_addr_q;
-  logic [4:0]  rvfi_rs3_addr_d;
-  logic [31:0] rvfi_rs1_data_d;
-  logic [31:0] rvfi_rs1_data_q;
-  logic [31:0] rvfi_rs2_data_d;
-  logic [31:0] rvfi_rs2_data_q;
-  logic [31:0] rvfi_rs3_data_d;
-  logic [4:0]  rvfi_rd_addr_wb;
-  logic [4:0]  rvfi_rd_addr_q;
-  logic [4:0]  rvfi_rd_addr_d;
-  logic [31:0] rvfi_rd_wdata_wb;
-  logic [31:0] rvfi_rd_wdata_d;
-  logic [31:0] rvfi_rd_wdata_q;
-  logic        rvfi_rd_we_wb;
-  logic [3:0]  rvfi_mem_mask_int;
-  logic [31:0] rvfi_mem_rdata_d;
-  logic [31:0] rvfi_mem_rdata_q;
-  logic [31:0] rvfi_mem_wdata_d;
-  logic [31:0] rvfi_mem_wdata_q;
-  logic [31:0] rvfi_mem_addr_d;
-  logic [31:0] rvfi_mem_addr_q;
-`endif
 
   //////////////////////
   // Clock management //
@@ -908,9 +874,6 @@ module ibex_core import ibex_pkg::*; #(
   // RF (Register File) //
   ////////////////////////
 `ifdef RVFI
-  assign rvfi_rd_addr_wb  = rf_waddr_wb;
-  assign rvfi_rd_wdata_wb = rf_we_wb ? rf_wdata_wb : rf_wdata_lsu;
-  assign rvfi_rd_we_wb    = rf_we_wb | rf_we_lsu;
 `endif
 
 
@@ -1110,6 +1073,39 @@ module ibex_core import ibex_pkg::*; #(
   logic [31:0] rvfi_stage_mem_rdata [RVFI_STAGES];
   logic [31:0] rvfi_stage_mem_wdata [RVFI_STAGES];
 
+  logic        rvfi_instr_new_wb;
+  logic        rvfi_intr_d;
+  logic        rvfi_intr_q;
+  logic        rvfi_set_trap_pc_d;
+  logic        rvfi_set_trap_pc_q;
+  logic [31:0] rvfi_insn_id;
+  logic [4:0]  rvfi_rs1_addr_d;
+  logic [4:0]  rvfi_rs1_addr_q;
+  logic [4:0]  rvfi_rs2_addr_d;
+  logic [4:0]  rvfi_rs2_addr_q;
+  logic [4:0]  rvfi_rs3_addr_d;
+  logic [31:0] rvfi_rs1_data_d;
+  logic [31:0] rvfi_rs1_data_q;
+  logic [31:0] rvfi_rs2_data_d;
+  logic [31:0] rvfi_rs2_data_q;
+  logic [31:0] rvfi_rs3_data_d;
+  logic [4:0]  rvfi_rd_addr_wb;
+  logic [4:0]  rvfi_rd_addr_q;
+  logic [4:0]  rvfi_rd_addr_d;
+  logic [31:0] rvfi_rd_wdata_wb;
+  logic [31:0] rvfi_rd_wdata_d;
+  logic [31:0] rvfi_rd_wdata_q;
+  logic        rvfi_rd_we_wb;
+  logic [3:0]  rvfi_mem_mask_int;
+  logic [31:0] rvfi_mem_rdata_d;
+  logic [31:0] rvfi_mem_rdata_q;
+  logic [31:0] rvfi_mem_wdata_d;
+  logic [31:0] rvfi_mem_wdata_q;
+  logic [31:0] rvfi_mem_addr_d;
+  logic [31:0] rvfi_mem_addr_q;
+  logic        rvfi_trap_id;
+  logic        rvfi_trap_wb;
+
   // RVFI extension for co-simulation support
   // debug_req and MIP captured at IF -> ID transition so one extra stage
   ibex_pkg::irqs_t rvfi_ext_stage_mip       [RVFI_STAGES+1];
@@ -1141,7 +1137,20 @@ module ibex_core import ibex_pkg::*; #(
   assign rvfi_mem_rdata = rvfi_stage_mem_rdata[RVFI_STAGES-1];
   assign rvfi_mem_wdata = rvfi_stage_mem_wdata[RVFI_STAGES-1];
 
-  assign rvfi_ext_mip       = rvfi_ext_stage_mip      [RVFI_STAGES];
+  assign rvfi_rd_addr_wb  = rf_waddr_wb;
+  assign rvfi_rd_wdata_wb = rf_we_wb ? rf_wdata_wb : rf_wdata_lsu;
+  assign rvfi_rd_we_wb    = rf_we_wb | rf_we_lsu;
+
+  always_comb begin
+    // Use always_comb instead of continuous assign so first assign can set 0 as default everywhere
+    // that is overridden by more specific settings.
+    rvfi_ext_mip                                     = '0;
+    rvfi_ext_mip[CSR_MSIX_BIT]                       = rvfi_ext_stage_mip[RVFI_STAGES].irq_software;
+    rvfi_ext_mip[CSR_MTIX_BIT]                       = rvfi_ext_stage_mip[RVFI_STAGES].irq_timer;
+    rvfi_ext_mip[CSR_MEIX_BIT]                       = rvfi_ext_stage_mip[RVFI_STAGES].irq_external;
+    rvfi_ext_mip[CSR_MFIX_BIT_HIGH:CSR_MFIX_BIT_LOW] = rvfi_ext_stage_mip[RVFI_STAGES].irq_fast;
+  end
+
   assign rvfi_ext_debug_req = rvfi_ext_stage_debug_req[RVFI_STAGES];
 
   if (WritebackStage) begin : gen_rvfi_wb_stage
@@ -1171,6 +1180,9 @@ module ibex_core import ibex_pkg::*; #(
         rvfi_instr_new_wb_q <= instr_id_done;
       end
     end
+
+    assign rvfi_trap_id = id_stage_i.controller_i.exc_req_d;
+    assign rvfi_trap_wb = id_stage_i.controller_i.exc_req_lsu;
   end else begin : gen_rvfi_no_wb_stage
     // Without writeback stage first RVFI stage is output stage so simply valid the cycle after
     // instruction leaves ID/EX (and so has retired)
@@ -1178,6 +1190,8 @@ module ibex_core import ibex_pkg::*; #(
     // Without writeback stage signal new instr_new_wb when instruction enters ID/EX to correctly
     // setup register write signals
     assign rvfi_instr_new_wb = instr_new_id;
+    assign rvfi_trap_id = id_stage_i.controller_i.exc_req_d | id_stage_i.controller_i.exc_req_lsu;
+    assign rvfi_trap_wb = 1'b0;
   end
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
@@ -1223,7 +1237,7 @@ module ibex_core import ibex_pkg::*; #(
           if(instr_id_done) begin
             rvfi_stage_halt[i]      <= '0;
             // TODO: Sort this out for writeback stage
-            rvfi_stage_trap[i]      <= (illegal_insn_id | id_stage_i.controller_i.exc_req_d | id_stage_i.controller_i.exc_req_lsu);
+            rvfi_stage_trap[i]      <= rvfi_trap_id;
             rvfi_stage_intr[i]      <= rvfi_intr_d;
             rvfi_stage_order[i]     <= rvfi_stage_order[i] + 64'(rvfi_stage_valid_d[i]);
             rvfi_stage_insn[i]      <= rvfi_insn_id;
@@ -1251,7 +1265,7 @@ module ibex_core import ibex_pkg::*; #(
         end else begin
           if(instr_done_wb) begin
             rvfi_stage_halt[i]      <= rvfi_stage_halt[i-1];
-            rvfi_stage_trap[i]      <= rvfi_stage_trap[i-1];
+            rvfi_stage_trap[i]      <= rvfi_stage_trap[i-1] | rvfi_trap_wb;
             rvfi_stage_intr[i]      <= rvfi_stage_intr[i-1];
             rvfi_stage_order[i]     <= rvfi_stage_order[i-1];
             rvfi_stage_insn[i]      <= rvfi_stage_insn[i-1];

@@ -24,14 +24,16 @@
          -sverilog -ntb_opts uvm-1.2
          +define+UVM
          +define+UVM_REGEX_NO_DPI -timescale=1ns/10ps -licqueue
-         -LDFLAGS '-Wl,--no-as-needed'
-         -CFLAGS '--std=c99 -fno-extended-identifiers'
+         -LDFLAGS '-Wl,--no-as-needed -L/home/greg/work/riscv/riscv-isa-sim/build/'
+         -CFLAGS '--std=c99 -fno-extended-identifiers -I/home/greg/work/riscv/riscv-isa-sim/riscv -I/home/greg/work/riscv/riscv-isa-sim/softfloat -I/home/greg/work/riscv/riscv-isa-sim/build -I/home/greg/work/ibex_area/ibex/dv/cosim'
          -Mdir=<out>/vcs_simv.csrc
          -o <out>/vcs_simv
          -debug_access+pp
          -xlrm uniq_prior_final
          -CFLAGS '--std=c99 -fno-extended-identifiers'
-         -lca -kdb <cmp_opts> <wave_opts> <cov_opts>"
+         -lca -kdb <cmp_opts> <wave_opts> <cov_opts>
+         -lriscv -lsoftfloat -lfdt -ldisasm -ldl -lstdc++
+         "
     cov_opts: >
       -cm line+tgl+assert+fsm+branch
       -cm_tgl portsonly

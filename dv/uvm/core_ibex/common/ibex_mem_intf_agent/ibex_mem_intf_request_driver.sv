@@ -62,7 +62,7 @@ class ibex_mem_intf_request_driver extends uvm_driver #(ibex_mem_intf_seq_item);
     vif.request_driver_cb.addr    <= trans.addr;
     vif.request_driver_cb.be      <= trans.be;
     vif.request_driver_cb.we      <= trans.read_write;
-    vif.request_driver_cb.wdata   <= trans.data;
+    vif.request_driver_cb.wdata   <= trans.wdata;
     wait (vif.request_driver_cb.grant === 1'b1);
     vif.wait_clks(1);
     vif.request_driver_cb.request <= 'h0;
@@ -80,7 +80,7 @@ class ibex_mem_intf_request_driver extends uvm_driver #(ibex_mem_intf_seq_item);
       vif.wait_clks(1);
       while(vif.rvalid !== 1'b1) vif.wait_clks(1);
       if(tr.read_write == READ)
-        tr.data = vif.request_driver_cb.rdata;
+        tr.rdata = vif.request_driver_cb.rdata;
       seq_item_port.put_response(tr);
     end
   endtask : collect_response

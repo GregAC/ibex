@@ -36,7 +36,7 @@ class ibex_asm_program_gen extends riscv_asm_program_gen;
 
   virtual function void init_custom_csr(ref string instr[$]);
     // Write 1 to cpuctrl.icache_enable to enable Icache during simulation
-    instr.push_back("csrwi 0x7c0, 1");
+    //instr.push_back("csrwi 0x7c0, 1");
   endfunction
 
 endclass

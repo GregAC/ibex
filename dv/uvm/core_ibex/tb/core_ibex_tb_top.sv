@@ -130,6 +130,7 @@ module core_ibex_tb_top;
   assign instr_mem_vif.be                     = 0;
   assign instr_mem_vif.wdata                  = 0;
   // RVFI interface connections
+  assign rvfi_if.reset                        = ~rst_n;
   assign rvfi_if.valid                        = dut.rvfi_valid;
   assign rvfi_if.order                        = dut.rvfi_order;
   assign rvfi_if.insn                         = dut.rvfi_insn;
@@ -149,6 +150,8 @@ module core_ibex_tb_top;
   assign rvfi_if.mem_rmask                    = dut.rvfi_mem_rmask;
   assign rvfi_if.mem_rdata                    = dut.rvfi_mem_rdata;
   assign rvfi_if.mem_wdata                    = dut.rvfi_mem_wdata;
+  assign rvfi_if.ext_mip                      = dut.rvfi_ext_mip;
+  assign rvfi_if.ext_debug_req                = dut.rvfi_ext_debug_req;
   // Irq interface connections
   assign irq_vif.reset                        = ~rst_n;
   // Dut_if interface connections
@@ -178,6 +181,13 @@ module core_ibex_tb_top;
   assign csr_if.csr_rdata                     = dut.u_ibex_top.u_ibex_core.csr_rdata;
   assign csr_if.csr_op                        = dut.u_ibex_top.u_ibex_core.csr_op;
 
+  assign data_mem_vif.misaligned_first =
+    dut.u_ibex_top.u_ibex_core.load_store_unit_i.handle_misaligned_d |
+    ((dut.u_ibex_top.u_ibex_core.load_store_unit_i.lsu_type_i == 2'b01) &
+     (dut.u_ibex_top.u_ibex_core.load_store_unit_i.data_offset == 2'b01));
+
+  assign data_mem_vif.misaligned_second = dut.u_ibex_top.u_ibex_core.load_store_unit_i.addr_incr_req_o;
+
   initial begin
     // Drive the clock and reset lines. Reset everything and start the clock at the beginning of
     // time
@@ -197,6 +207,7 @@ module core_ibex_tb_top;
     uvm_config_db#(virtual ibex_mem_intf)::set(null, "*data_if_response*", "vif", data_mem_vif);
     uvm_config_db#(virtual ibex_mem_intf)::set(null, "*instr_if_response*", "vif", instr_mem_vif);
     uvm_config_db#(virtual irq_if)::set(null, "*", "vif", irq_vif);
+    uvm_config_db#(virtual core_ibex_rvfi_if)::set(null, "*instr_monitor*", "vif", rvfi_if);
     run_test();
   end
 

@@ -107,7 +107,7 @@ module ibex_top_tracing #(
   logic [ 3:0] rvfi_mem_wmask;
   logic [31:0] rvfi_mem_rdata;
   logic [31:0] rvfi_mem_wdata;
-  irqs_t       rvfi_ext_mip;
+  logic [31:0] rvfi_ext_mip;
   logic        rvfi_ext_debug_req;
 
   ibex_top #(

@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
   VerilatorMemUtil memutil;
   VerilatorSimCtrl &simctrl = VerilatorSimCtrl::GetInstance();
 
-  cosim = new SpikeCosim;
+  cosim = new SpikeCosim(0x100080, 0x100001);
 
   simctrl.SetTop(&top, &top.IO_CLK, &top.IO_RST_N,
                  VerilatorSimCtrlFlags::ResetPolarityNegative);

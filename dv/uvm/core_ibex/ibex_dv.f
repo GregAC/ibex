@@ -75,6 +75,7 @@ ${PRJ_DIR}/vendor/google_riscv-dv/src/riscv_signature_pkg.sv
 +incdir+${PRJ_DIR}/dv/uvm/core_ibex/tests
 +incdir+${PRJ_DIR}/dv/uvm/core_ibex/common/ibex_mem_intf_agent
 +incdir+${PRJ_DIR}/dv/uvm/core_ibex/common/irq_agent
++incdir+${PRJ_DIR}/dv/uvm/core_ibex/common/ibex_cosim_agent
 +incdir+${PRJ_DIR}/vendor/lowrisc_ip/dv/sv/mem_model
 +incdir+${PRJ_DIR}/vendor/lowrisc_ip/dv/sv/dv_utils
 +incdir+${PRJ_DIR}/vendor/lowrisc_ip/dv/sv/str_utils
@@ -89,12 +90,18 @@ ${PRJ_DIR}/dv/uvm/core_ibex/common/ibex_mem_intf_agent/ibex_mem_intf.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/common/ibex_mem_intf_agent/ibex_mem_intf_agent_pkg.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/common/irq_agent/irq_if.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/common/irq_agent/irq_agent_pkg.sv
+${PRJ_DIR}/dv/uvm/core_ibex/env/core_ibex_rvfi_if.sv
+${PRJ_DIR}/dv/cosim/cosim_dpi.sv
+${PRJ_DIR}/dv/uvm/core_ibex/common/ibex_cosim_agent/ibex_cosim_agent_pkg.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/env/core_ibex_instr_monitor_if.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/env/core_ibex_dut_probe_if.sv
-${PRJ_DIR}/dv/uvm/core_ibex/env/core_ibex_rvfi_if.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/env/core_ibex_csr_if.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/env/core_ibex_env_pkg.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/tests/core_ibex_test_pkg.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/fcov/core_ibex_fcov_if.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/fcov/core_ibex_fcov_bind.sv
 ${PRJ_DIR}/dv/uvm/core_ibex/tb/core_ibex_tb_top.sv
+
+${PRJ_DIR}/dv/uvm/core_ibex/common/ibex_cosim_agent/spike_cosim_dpi.cc
+${PRJ_DIR}/dv/cosim/cosim_dpi.cc
+${PRJ_DIR}/dv/cosim/spike_cosim.cc

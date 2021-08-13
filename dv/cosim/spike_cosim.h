@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <deque>
 
 class SpikeCosim : public simif_t, public Cosim {
  private:
@@ -23,12 +24,31 @@ class SpikeCosim : public simif_t, public Cosim {
   bus_t bus;
   std::vector<std::unique_ptr<mem_t>> mems;
   std::vector<std::string> errors;
+
+  void fixup_csr(int csr_num, uint32_t csr_val);
+
+  struct PendingMemAccess {
+    bool store;
+    bool error;
+    bool misaligned_first;
+    bool misaligned_second;
+    uint32_t addr;
+    uint32_t data;
+    uint32_t be_dut;
+    uint32_t be_spike;
+  };
+
+  std::vector<PendingMemAccess> pending_dside_accesses;
+  std::vector<PendingMemAccess> pending_iside_accesses;
+
+  bool check_mem_access(bool store, uint32_t addr, size_t len,
+                        const uint8_t* bytes);
  public:
-  SpikeCosim();
+  SpikeCosim(uint32_t start_pc, uint32_t start_mtval);
 
   // simif_t implementation
   virtual char *addr_to_mem(reg_t addr) override;
-  virtual bool mmio_load(reg_t addr, size_t len, uint8_t *bytes) override;
+  virtual bool mmio_load(reg_t addr, size_t len, uint8_t *bytes, bool iside) override;
   virtual bool mmio_store(reg_t addr, size_t len,
                           const uint8_t *bytes) override;
   virtual void proc_reset(unsigned id) override;
@@ -42,6 +62,9 @@ class SpikeCosim : public simif_t, public Cosim {
   bool step(uint32_t write_reg, uint32_t write_reg_data, uint32_t pc) override;
   void set_mip(uint32_t mip) override;
   void set_debug_req(bool debug_req) override;
+  void notify_dside_access(bool store, uint32_t addr, uint32_t data,
+                           uint32_t be, bool error, bool misaligned_first,
+                           bool misaligned_second) override;
   const std::vector<std::string> &get_errors() override;
   void clear_errors() override;
 };

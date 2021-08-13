@@ -16,9 +16,12 @@ interface ibex_mem_intf#(
   wire                     we;
   wire  [DATA_WIDTH/8-1:0] be;
   wire                     rvalid;
+  // TODO: Switch back to a single data field
   wire  [DATA_WIDTH-1:0]   wdata;
   wire  [DATA_WIDTH-1:0]   rdata;
   wire                     error;
+  wire                     misaligned_first;
+  wire                     misaligned_second;
 
   clocking request_driver_cb @(posedge clk);
     input   reset;
@@ -57,6 +60,8 @@ interface ibex_mem_intf#(
     input wdata;
     input rdata;
     input error;
+    input misaligned_first;
+    input misaligned_second;
   endclocking
 
   task automatic wait_clks(input int num);

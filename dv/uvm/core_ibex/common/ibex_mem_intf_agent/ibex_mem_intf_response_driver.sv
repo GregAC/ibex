@@ -120,7 +120,7 @@ class ibex_mem_intf_response_driver extends uvm_driver #(ibex_mem_intf_seq_item)
       if(~vif.response_driver_cb.reset) begin
         vif.response_driver_cb.rvalid <=  1'b1;
         vif.response_driver_cb.error  <=  tr.error;
-        vif.response_driver_cb.rdata  <=  tr.data;
+        vif.response_driver_cb.rdata  <=  tr.rdata;
       end
     end
   endtask : send_read_data

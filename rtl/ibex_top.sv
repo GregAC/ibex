@@ -100,7 +100,7 @@ module ibex_top #(
     output logic [ 3:0]                  rvfi_mem_wmask,
     output logic [31:0]                  rvfi_mem_rdata,
     output logic [31:0]                  rvfi_mem_wdata,
-    output ibex_pkg::irqs_t              rvfi_ext_mip,
+    output logic [31:0]                  rvfi_ext_mip,
     output logic                         rvfi_ext_debug_req,
 `endif
 

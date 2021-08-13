@@ -35,10 +35,11 @@ class ibex_mem_intf_response_seq extends uvm_sequence #(ibex_mem_intf_seq_item);
       req = ibex_mem_intf_seq_item::type_id::create("req");
       error_synch = 1'b0;
       if (!req.randomize() with {
-        addr       == item.addr;
-        read_write == item.read_write;
-        data       == item.data;
-        be         == item.be;
+        addr        == item.addr;
+        read_write  == item.read_write;
+        rdata       == item.rdata;
+        wdata       == item.wdata;
+        be          == item.be;
         rvalid_delay dist {
           min_rvalid_delay                                  :/ 5,
           [min_rvalid_delay + 1 : max_rvalid_delay / 2 - 1] :/ 3,
@@ -54,7 +55,7 @@ class ibex_mem_intf_response_seq extends uvm_sequence #(ibex_mem_intf_seq_item);
       aligned_addr = {req.addr[DATA_WIDTH-1:2], 2'b0};
       if (req.error) begin
         `DV_CHECK_STD_RANDOMIZE_FATAL(rand_data)
-        req.data = rand_data;
+        req.rdata = rand_data;
       end else begin
         if(req.read_write == READ) begin : READ_block
           if (is_dmem_seq) begin
@@ -63,9 +64,9 @@ class ibex_mem_intf_response_seq extends uvm_sequence #(ibex_mem_intf_seq_item);
               if (req.be[i])
                 read_data[7:0] = m_mem.read_byte(aligned_addr + i);
             end
-            req.data = read_data;
+            req.rdata = read_data;
           end else begin
-            req.data = m_mem.read(aligned_addr);
+            req.rdata = m_mem.read(aligned_addr);
           end
         end
       end
@@ -74,7 +75,7 @@ class ibex_mem_intf_response_seq extends uvm_sequence #(ibex_mem_intf_seq_item);
       finish_item(req);
       if(item.read_write == WRITE) begin : WRITE_block
         bit [DATA_WIDTH-1:0] data;
-        data = req.data;
+        data = req.wdata;
         for (int i = 0; i < DATA_WIDTH / 8; i++) begin
           if (req.be[i])
             m_mem.write_byte(aligned_addr + i, data[7:0]);

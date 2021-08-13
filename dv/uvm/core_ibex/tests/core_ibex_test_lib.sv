@@ -166,7 +166,7 @@ class core_ibex_debug_intr_basic_test extends core_ibex_base_test;
           begin
             if (enable_irq_seq) begin
               forever begin
-                send_irq_stimulus();
+                send_irq_stimulus(.no_nmi(1));
               end
             end
           end
@@ -1268,10 +1268,10 @@ class core_ibex_mem_error_test extends core_ibex_directed_test;
       // Dmem interface error could be either a load or store operation
       check_dmem_fault();
       // Random delay before injecting instruction fetch fault
-      `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(err_delay, err_delay inside { [50:200] };)
-      clk_vif.wait_clks(err_delay);
-      inject_imem_error();
-      check_imem_fault();
+      //`DV_CHECK_STD_RANDOMIZE_WITH_FATAL(err_delay, err_delay inside { [50:200] };)
+      //clk_vif.wait_clks(err_delay);
+      //inject_imem_error();
+      //check_imem_fault();
       // Random delay before injecting this series of errors again
       `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(err_delay, err_delay inside { [250:750] };)
       clk_vif.wait_clks(err_delay);
