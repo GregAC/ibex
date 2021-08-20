@@ -174,6 +174,7 @@ module core_ibex_tb_top;
   assign instr_monitor_if.branch_target_id    = dut.u_ibex_top.u_ibex_core.branch_target_ex;
   assign instr_monitor_if.stall_id            = dut.u_ibex_top.u_ibex_core.id_stage_i.stall_id;
   assign instr_monitor_if.jump_set_id         = dut.u_ibex_top.u_ibex_core.id_stage_i.jump_set;
+  assign instr_monitor_if.rvfi_order_id       = dut.u_ibex_top.u_ibex_core.rvfi_stage_order_d;
   // CSR interface connections
   assign csr_if.csr_access                    = dut.u_ibex_top.u_ibex_core.csr_access;
   assign csr_if.csr_addr                      = dut.u_ibex_top.u_ibex_core.csr_addr;

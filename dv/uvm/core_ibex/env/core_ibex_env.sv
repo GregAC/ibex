@@ -39,6 +39,7 @@ class core_ibex_env extends uvm_env;
     vseqr.irq_seqr = irq_agent.sequencer;
     // TODO: Use import on agent
     data_if_response_agent.monitor.item_collected_port.connect(cosim_agent.scoreboard.dmem_port.analysis_export);
+    instr_if_response_agent.monitor.item_collected_port.connect(cosim_agent.scoreboard.imem_port.analysis_export);
   endfunction : connect_phase
 
   function void reset();

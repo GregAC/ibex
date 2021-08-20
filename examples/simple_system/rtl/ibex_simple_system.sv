@@ -337,7 +337,8 @@ module ibex_simple_system (
   logic [31:0] outstanding_addr;
   logic [3:0] outstanding_be;
   logic [31:0] outstanding_store_data;
-  logic outstanding_misaligned;
+  logic outstanding_misaligned_first;
+  logic outstanding_misaligned_second;
 
   always @(posedge IO_CLK or negedge IO_RST_N) begin
     if (!IO_RST_N) begin
@@ -350,11 +351,15 @@ module ibex_simple_system (
         outstanding_addr       <= host_addr[CoreD];
         outstanding_be         <= host_be[CoreD];
         outstanding_store_data <= host_wdata[CoreD];
-        outstanding_misaligned <= u_top.u_ibex_top.u_ibex_core.load_store_unit_i.addr_incr_req_o | u_top.u_ibex_top.u_ibex_core.load_store_unit_i.handle_misaligned_d;
+        outstanding_misaligned_first <=
+          u_top.u_ibex_top.u_ibex_core.load_store_unit_i.handle_misaligned_d |
+          ((u_top.u_ibex_top.u_ibex_core.load_store_unit_i.lsu_type_i == 2'b01) &
+           (u_top.u_ibex_top.u_ibex_core.load_store_unit_i.data_offset == 2'b01));
+        outstanding_misaligned_second <= u_top.u_ibex_top.u_ibex_core.load_store_unit_i.addr_incr_req_o;
       end
 
       if (host_rvalid[CoreD]) begin
-        riscv_cosim_notify_dside_access(cosim_handle, outstanding_store, outstanding_addr, outstanding_store ? outstanding_store_data : host_rdata[CoreD], outstanding_be, host_err[CoreD], outstanding_misaligned);
+        riscv_cosim_notify_dside_access(cosim_handle, outstanding_store, outstanding_addr, outstanding_store ? outstanding_store_data : host_rdata[CoreD], outstanding_be, host_err[CoreD], outstanding_misaligned_first, outstanding_misaligned_second);
       end
     end
   end

@@ -54,6 +54,8 @@ class Cosim {
                                    bool misaligned_first,
                                    bool misaligned_second) = 0;
 
+  virtual void notify_iside_err(uint32_t addr) = 0;
+
   // Get a vector of strings describing errors that have occurred during `step`
   virtual const std::vector<std::string> &get_errors() = 0;
 

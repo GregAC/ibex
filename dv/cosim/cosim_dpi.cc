@@ -32,6 +32,12 @@ void riscv_cosim_notify_dside_access(void* cosim_handle, svBit store, svBitVecVa
   cosim->notify_dside_access(store, addr[0], data[0], be[0], error, misaligned_first, misaligned_second);
 }
 
+void riscv_cosim_notify_iside_err(void* cosim_handle, svBitVecVal* addr) {
+  auto cosim = static_cast<Cosim *>(cosim_handle);
+
+  cosim->notify_iside_err(addr[0]);
+}
+
 int riscv_cosim_get_num_errs(void *cosim_handle) {
   auto cosim = static_cast<Cosim *>(cosim_handle);
 

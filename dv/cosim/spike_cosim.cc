@@ -14,7 +14,8 @@
 #include <iostream>
 #include <sstream>
 
-SpikeCosim::SpikeCosim(uint32_t start_pc, uint32_t start_mtval) {
+SpikeCosim::SpikeCosim(uint32_t start_pc, uint32_t start_mtval) :
+    pending_iside_err(false) {
   log = std::make_unique<log_file_t>("spike_trace.log");
 
   processor = std::make_unique<processor_t>("RV32IMC", "MU", DEFAULT_VARCH,
@@ -34,7 +35,12 @@ bool SpikeCosim::mmio_load(reg_t addr, size_t len, uint8_t *bytes, bool iside) {
   bool bus_error = !bus.load(addr, len, bytes);
   bool dut_error = false;
 
-  if (!iside) {
+  if (iside) {
+    if (pending_iside_err && (addr & 0xfffffffc) == pending_iside_err_addr) {
+      dut_error = true;
+      pending_iside_err = false;
+    }
+  } else {
     dut_error = check_mem_access(false, addr, len, bytes);
   }
 
@@ -198,6 +204,11 @@ void SpikeCosim::notify_dside_access(bool store, uint32_t addr, uint32_t data,
   pending_dside_accesses.emplace_back(PendingMemAccess{.store = store, .error = error,
     .misaligned_first = misaligned_first, .misaligned_second = misaligned_second, .addr = addr, .data = data, .be_dut = be,
     .be_spike = 0});
+}
+
+void SpikeCosim::notify_iside_err(uint32_t addr) {
+  pending_iside_err = true;
+  pending_iside_err_addr = addr;
 }
 
 const std::vector<std::string>& SpikeCosim::get_errors() { return errors; }

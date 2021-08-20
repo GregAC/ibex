@@ -39,7 +39,9 @@ class SpikeCosim : public simif_t, public Cosim {
   };
 
   std::vector<PendingMemAccess> pending_dside_accesses;
-  std::vector<PendingMemAccess> pending_iside_accesses;
+
+  bool pending_iside_err;
+  uint32_t pending_iside_err_addr;
 
   bool check_mem_access(bool store, uint32_t addr, size_t len,
                         const uint8_t* bytes);
@@ -65,6 +67,7 @@ class SpikeCosim : public simif_t, public Cosim {
   void notify_dside_access(bool store, uint32_t addr, uint32_t data,
                            uint32_t be, bool error, bool misaligned_first,
                            bool misaligned_second) override;
+  void notify_iside_err(uint32_t addr) override;
   const std::vector<std::string> &get_errors() override;
   void clear_errors() override;
 };

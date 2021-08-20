@@ -60,6 +60,7 @@ module ibex_controller #(
     input  logic                  load_err_i,
     input  logic                  store_err_i,
     output logic                  wb_exception_o,          // Instruction in WB taking an exception
+    output logic                  id_exception_o,
 
     // jump/branch signals
     input  logic                  branch_set_i,            // branch set signal (branch definitely
@@ -222,6 +223,7 @@ module ibex_controller #(
   // LSU exception requests
   assign exc_req_lsu = store_err_i | load_err_i;
 
+  assign id_exception_o = exc_req_d;
 
   // special requests: special instructions, pipeline flushes, exceptions...
   // All terms in these expressions are qualified by instr_valid_i except exc_req_lsu which can come
@@ -806,7 +808,7 @@ module ibex_controller #(
   // If high current instruction cannot complete this cycle. Either because it needs more cycles to
   // finish (stall_id_i) or because the writeback stage cannot accept it yet (stall_wb_i). If there
   // is no writeback stage stall_wb_i is a constant 0.
-  assign stall = stall_id_i | stall_wb_i;
+  assign stall = stall_id_i | stall_wb_i | retain_id;
 
   // signal to IF stage that ID stage is ready for next instr
   assign id_in_ready_o = ~stall & ~halt_if & ~retain_id;

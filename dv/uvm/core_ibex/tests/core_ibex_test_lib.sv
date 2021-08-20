@@ -700,14 +700,14 @@ class core_ibex_interrupt_instr_test extends core_ibex_directed_test;
         // Testbench waits for 50 clocks before calling check_stimulus. If a WFI is executed during
         // these 50 clocks the test would sleep forever, so if the core enters sleep send irq
         // stimulus to wake it up.
-        send_irq_stimulus(.no_fast(1'b1));
+        send_irq_stimulus(.no_fast(1'b1), .no_nmi(1'b1));
       end else if (instr_vif.instr_cb.is_compressed_id) begin
         if (decode_compressed_instr(instr_vif.instr_cb.instr_compressed_id)) begin
-          send_irq_stimulus(.no_fast(1'b1));
+          send_irq_stimulus(.no_fast(1'b1), .no_nmi(1'b1));
         end
       end else begin
         if (decode_instr(instr_vif.instr_cb.instr_id)) begin
-          send_irq_stimulus(.no_fast(1'b1));
+          send_irq_stimulus(.no_fast(1'b1), .no_nmi(1'b1));
         end
       end
       clk_vif.wait_clks(1);
@@ -1268,10 +1268,10 @@ class core_ibex_mem_error_test extends core_ibex_directed_test;
       // Dmem interface error could be either a load or store operation
       check_dmem_fault();
       // Random delay before injecting instruction fetch fault
-      //`DV_CHECK_STD_RANDOMIZE_WITH_FATAL(err_delay, err_delay inside { [50:200] };)
-      //clk_vif.wait_clks(err_delay);
-      //inject_imem_error();
-      //check_imem_fault();
+      `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(err_delay, err_delay inside { [50:200] };)
+      clk_vif.wait_clks(err_delay);
+      inject_imem_error();
+      check_imem_fault();
       // Random delay before injecting this series of errors again
       `DV_CHECK_STD_RANDOMIZE_WITH_FATAL(err_delay, err_delay inside { [250:750] };)
       clk_vif.wait_clks(err_delay);

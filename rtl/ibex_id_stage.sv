@@ -577,6 +577,7 @@ module ibex_id_stage #(
       .load_err_i                     ( lsu_load_err_i          ),
       .store_err_i                    ( lsu_store_err_i         ),
       .wb_exception_o                 ( wb_exception            ),
+      .id_exception_o                 ( id_exception            ),
 
       // jump/branch control
       .branch_set_i                   ( branch_set              ),
@@ -906,6 +907,7 @@ module ibex_id_stage #(
     // - There was an error on instruction fetch
     assign instr_kill = instr_fetch_err_i |
                         wb_exception      |
+                        id_exception      |
                         ~controller_run;
 
     // With writeback stage instructions must be prevented from executing if there is:
