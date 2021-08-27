@@ -44,10 +44,14 @@ class Cosim {
   // new interrupt that is enabled it will step straight to that handler).
   virtual void set_mip(uint32_t mip) = 0;
 
+  virtual void set_nmi(bool nmi) = 0;
+
   // Set the debug request
   //
   // When set to true the core will enter debug mode at the next step
   virtual void set_debug_req(bool debug_req) = 0;
+
+  virtual void set_mcycle(uint64_t mcycle) = 0;
 
   virtual void notify_dside_access(bool store, uint32_t addr, uint32_t data,
                                    uint32_t be, bool error,

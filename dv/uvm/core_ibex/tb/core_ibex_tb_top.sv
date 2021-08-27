@@ -151,7 +151,9 @@ module core_ibex_tb_top;
   assign rvfi_if.mem_rdata                    = dut.rvfi_mem_rdata;
   assign rvfi_if.mem_wdata                    = dut.rvfi_mem_wdata;
   assign rvfi_if.ext_mip                      = dut.rvfi_ext_mip;
+  assign rvfi_if.ext_nmi                      = dut.rvfi_ext_nmi;
   assign rvfi_if.ext_debug_req                = dut.rvfi_ext_debug_req;
+  assign rvfi_if.ext_mcycle                   = dut.rvfi_ext_mcycle;
   // Irq interface connections
   assign irq_vif.reset                        = ~rst_n;
   // Dut_if interface connections
@@ -164,6 +166,7 @@ module core_ibex_tb_top;
   assign dut_if.reset                         = ~rst_n;
   assign dut_if.priv_mode                     = dut.u_ibex_top.u_ibex_core.priv_mode_id;
   // Instruction monitor connections
+  assign instr_monitor_if.reset               = ~rst_n;
   assign instr_monitor_if.valid_id            = dut.u_ibex_top.u_ibex_core.id_stage_i.instr_valid_i;
   assign instr_monitor_if.err_id              = dut.u_ibex_top.u_ibex_core.id_stage_i.controller_i.instr_fetch_err;
   assign instr_monitor_if.is_compressed_id    = dut.u_ibex_top.u_ibex_core.id_stage_i.instr_is_compressed_i;

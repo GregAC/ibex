@@ -166,7 +166,7 @@ class core_ibex_debug_intr_basic_test extends core_ibex_base_test;
           begin
             if (enable_irq_seq) begin
               forever begin
-                send_irq_stimulus(.no_nmi(1));
+                send_irq_stimulus(/*.no_nmi(1)*/);
               end
             end
           end

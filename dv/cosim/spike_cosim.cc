@@ -15,7 +15,7 @@
 #include <sstream>
 
 SpikeCosim::SpikeCosim(uint32_t start_pc, uint32_t start_mtval) :
-    pending_iside_err(false) {
+    pending_iside_err(false), seen_nmi(false) {
   log = std::make_unique<log_file_t>("spike_trace.log");
 
   processor = std::make_unique<processor_t>("RV32IMC", "MU", DEFAULT_VARCH,
@@ -108,6 +108,8 @@ bool SpikeCosim::step(uint32_t write_reg, uint32_t write_reg_data,
     return false;
   }
 
+  std::cout << "minstret: " << processor->get_state()->minstret << " at pc: " << std::hex << pc << std::dec << std::endl;
+
   // Check register writes from executed instruction match what is expected
   auto &reg_changes = processor->get_state()->log_reg_write;
 
@@ -191,9 +193,21 @@ void SpikeCosim::set_mip(uint32_t mip) {
   processor->get_state()->mip = mip;
 }
 
+void SpikeCosim::set_nmi(bool nmi) {
+  if (!seen_nmi & nmi) {
+    processor->get_state()->nmi = true;
+  }
+
+  seen_nmi = nmi;
+}
+
 void SpikeCosim::set_debug_req(bool debug_req) {
   processor->halt_request =
       debug_req ? processor_t::HR_REGULAR : processor_t::HR_NONE;
+}
+
+void SpikeCosim::set_mcycle(uint64_t mcycle) {
+  processor->get_state()->mcycle = mcycle;
 }
 
 // TODO: Just make struct public and have this take a struct, getting too many

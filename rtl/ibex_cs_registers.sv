@@ -108,6 +108,8 @@ module ibex_cs_registers #(
     // Performance Counters
     input  logic                 instr_ret_i,            // instr retired in ID/EX stage
     input  logic                 instr_ret_compressed_i, // compressed instr retired
+    input  logic                 instr_ret_spec_i,            // instr retired in ID/EX stage
+    input  logic                 instr_ret_compressed_spec_i, // compressed instr retired
     input  logic                 iside_wait_i,           // core waiting for the iside
     input  logic                 jump_i,                 // jump instr seen (j, jr, jal, jalr)
     input  logic                 branch_i,               // branch instr seen (bf, bnf)
@@ -241,6 +243,8 @@ module ibex_cs_registers #(
   logic        unused_mhpmcounter_we_1;
   logic        unused_mhpmcounterh_we_1;
   logic        unused_mhpmcounter_incr_1;
+
+  logic [63:0] minstret_next, minstret_raw;
 
   // Debug / trigger registers
   logic [31:0] tselect_rdata;
@@ -1225,8 +1229,10 @@ module ibex_cs_registers #(
     .counterh_we_i(mhpmcounterh_we[0]),
     .counter_we_i(mhpmcounter_we[0]),
     .counter_val_i(csr_wdata_int),
-    .counter_val_o(mhpmcounter[0])
+    .counter_val_o(mhpmcounter[0]),
+    .counter_val_upd_o(mcycle_next)
   );
+
 
   // minstret
   ibex_counter #(
@@ -1238,8 +1244,11 @@ module ibex_cs_registers #(
     .counterh_we_i(mhpmcounterh_we[2]),
     .counter_we_i(mhpmcounter_we[2]),
     .counter_val_i(csr_wdata_int),
-    .counter_val_o(mhpmcounter[2])
+    .counter_val_o(minstret_raw),
+    .counter_val_upd_o(minstret_next)
   );
+
+  assign mhpmcounter[2] = instr_ret_spec_i & ~mcountinhibit[2] ? minstret_next : minstret_raw;
 
   // reserved:
   assign mhpmcounter[1]            = '0;
@@ -1249,6 +1258,8 @@ module ibex_cs_registers #(
 
   for (genvar cnt=0; cnt < 29; cnt++) begin : gen_cntrs
     if (cnt < MHPMCounterNum) begin : gen_imp
+      logic [MHPMCounterWidth-1:0] mhpmcounter_raw, mhpmcounter_next;
+
       ibex_counter #(
         .CounterWidth(MHPMCounterWidth)
       ) mcounters_variable_i (
@@ -1258,8 +1269,17 @@ module ibex_cs_registers #(
         .counterh_we_i(mhpmcounterh_we[cnt+3]),
         .counter_we_i(mhpmcounter_we[cnt+3]),
         .counter_val_i(csr_wdata_int),
-        .counter_val_o(mhpmcounter[cnt+3])
+        .counter_val_o(mhpmcounter_raw),
+        .counter_val_upd_o(mhpmcounter_next)
       );
+
+      if (cnt == 10) begin
+        assign mhpmcounter[cnt+3] =
+          instr_ret_compressed_spec_i & ~mcountinhibit[cnt+3] ? mhpmcounter_next:
+                                                                mhpmcounter_raw;
+      end else begin
+        assign mhpmcounter[cnt+3] = mhpmcounter_raw;
+      end
     end else begin : gen_unimp
       assign mhpmcounter[cnt+3] = '0;
     end

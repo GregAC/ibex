@@ -20,10 +20,23 @@ void riscv_cosim_set_mip(void *cosim_handle, const svBitVecVal *mip) {
   cosim->set_mip(mip[0]);
 }
 
+void riscv_cosim_set_nmi(void *cosim_handle, svBit nmi) {
+  auto cosim = static_cast<Cosim *>(cosim_handle);
+
+  cosim->set_nmi(nmi);
+}
+
 void riscv_cosim_set_debug_req(void *cosim_handle, svBit debug_req) {
   auto cosim = static_cast<Cosim *>(cosim_handle);
 
   cosim->set_debug_req(debug_req);
+}
+
+void riscv_cosim_set_mcycle(void* cosim_handle, svBitVecVal* mcycle) {
+  auto cosim = static_cast<Cosim *>(cosim_handle);
+
+  uint64_t mcycle_full = mcycle[0] | (uint64_t)mcycle[1] << 32;
+  cosim->set_mcycle(mcycle_full);
 }
 
 void riscv_cosim_notify_dside_access(void* cosim_handle, svBit store, svBitVecVal* addr, svBitVecVal* data, svBitVecVal* be, svBit error, svBit misaligned_first, svBit misaligned_second) {

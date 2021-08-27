@@ -108,7 +108,9 @@ module ibex_top_tracing #(
   logic [31:0] rvfi_mem_rdata;
   logic [31:0] rvfi_mem_wdata;
   logic [31:0] rvfi_ext_mip;
+  logic        rvfi_ext_nmi;
   logic        rvfi_ext_debug_req;
+  logic [63:0] rvfi_ext_mcycle;
 
   ibex_top #(
     .PMPEnable        ( PMPEnable        ),
@@ -191,7 +193,9 @@ module ibex_top_tracing #(
     .rvfi_mem_rdata,
     .rvfi_mem_wdata,
     .rvfi_ext_mip,
+    .rvfi_ext_nmi,
     .rvfi_ext_debug_req,
+    .rvfi_ext_mcycle,
 
     .fetch_enable_i,
     .alert_minor_o,

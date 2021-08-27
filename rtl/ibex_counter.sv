@@ -8,7 +8,8 @@ module ibex_counter #(
   input  logic        counterh_we_i,
   input  logic        counter_we_i,
   input  logic [31:0] counter_val_i,
-  output logic [63:0] counter_val_o
+  output logic [63:0] counter_val_o,
+  output logic [63:0] counter_val_upd_o
 );
 
   logic [63:0]             counter;
@@ -75,6 +76,7 @@ module ibex_counter #(
   end
 
   assign counter_val_o = counter;
+  assign counter_val_upd_o = counter_upd;
 
 endmodule
 

@@ -63,13 +63,17 @@ class SpikeCosim : public simif_t, public Cosim {
   bool backdoor_read_mem(uint32_t addr, size_t len, uint8_t *data_out) override;
   bool step(uint32_t write_reg, uint32_t write_reg_data, uint32_t pc) override;
   void set_mip(uint32_t mip) override;
+  void set_nmi(bool nmi) override;
   void set_debug_req(bool debug_req) override;
+  void set_mcycle(uint64_t mcycle) override;
   void notify_dside_access(bool store, uint32_t addr, uint32_t data,
                            uint32_t be, bool error, bool misaligned_first,
                            bool misaligned_second) override;
   void notify_iside_err(uint32_t addr) override;
   const std::vector<std::string> &get_errors() override;
   void clear_errors() override;
+
+  bool seen_nmi;
 };
 
 #endif // SPIKE_COSIM_H_

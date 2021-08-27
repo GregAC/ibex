@@ -32,6 +32,8 @@ module ibex_wb_stage #(
   output logic                     outstanding_load_wb_o,
   output logic                     outstanding_store_wb_o,
   output logic [31:0]              pc_wb_o,
+  output logic                     perf_instr_ret_wb_spec_o,
+  output logic                     perf_instr_ret_compressed_wb_spec_o,
   output logic                     perf_instr_ret_wb_o,
   output logic                     perf_instr_ret_compressed_wb_o,
 
@@ -145,9 +147,11 @@ module ibex_wb_stage #(
     assign instr_done_wb_o = wb_valid_q & wb_done;
 
     // Increment instruction retire counters for valid instructions which are not lsu errors
-    assign perf_instr_ret_wb_o            = instr_done_wb_o & wb_count_q &
-                                            ~(lsu_resp_valid_i & lsu_resp_err_i);
-    assign perf_instr_ret_compressed_wb_o = perf_instr_ret_wb_o & wb_compressed_q;
+    assign perf_instr_ret_wb_spec_o            = wb_count_q;
+    assign perf_instr_ret_compressed_wb_spec_o = perf_instr_ret_wb_spec_o & wb_compressed_q;
+    assign perf_instr_ret_wb_o                 = instr_done_wb_o & wb_count_q &
+                                                 ~(lsu_resp_valid_i & lsu_resp_err_i);
+    assign perf_instr_ret_compressed_wb_o      = perf_instr_ret_wb_o & wb_compressed_q;
 
     // Forward data that will be written to the RF back to ID to resolve data hazards. The flopped
     // rf_wdata_wb_q is used rather than rf_wdata_wb_o as the latter includes read data from memory
@@ -160,9 +164,11 @@ module ibex_wb_stage #(
     assign rf_wdata_wb_mux_we[0] = rf_we_id_i;
 
     // Increment instruction retire counters for valid instructions which are not lsu errors
-    assign perf_instr_ret_wb_o            = instr_perf_count_id_i & en_wb_i &
-                                            ~(lsu_resp_valid_i & lsu_resp_err_i);
-    assign perf_instr_ret_compressed_wb_o = perf_instr_ret_wb_o & instr_is_compressed_id_i;
+    assign perf_instr_ret_wb_spec_o            = 1'b0;
+    assign perf_instr_ret_compressed_wb_spec_o = 1'b0;
+    assign perf_instr_ret_wb_o                 = instr_perf_count_id_i & en_wb_i &
+                                                 ~(lsu_resp_valid_i & lsu_resp_err_i);
+    assign perf_instr_ret_compressed_wb_o      = perf_instr_ret_wb_o & instr_is_compressed_id_i;
 
     // ready needs to be constant 1 without writeback stage (otherwise ID/EX stage will stall)
     assign ready_wb_o    = 1'b1;

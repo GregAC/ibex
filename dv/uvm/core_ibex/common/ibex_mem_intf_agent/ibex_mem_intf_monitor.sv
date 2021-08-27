@@ -85,7 +85,7 @@ class ibex_mem_intf_monitor extends uvm_monitor;
       end
 
       trans_collected.error = vif.monitor_cb.error;
-      `uvm_info(get_full_name(), $sformatf("Collected mem item: %s", trans_collected.sprint()), UVM_LOW)
+      `uvm_info(get_full_name(), $sformatf("Collected mem item: %s", trans_collected.sprint()), UVM_HIGH)
       item_collected_port.write(trans_collected);
     end
   endtask : collect_response_phase

@@ -127,7 +127,9 @@ module ibex_core import ibex_pkg::*; #(
     output logic [31:0]                  rvfi_mem_rdata,
     output logic [31:0]                  rvfi_mem_wdata,
     output logic [31:0]                  rvfi_ext_mip,
+    output logic                         rvfi_ext_nmi,
     output logic                         rvfi_ext_debug_req,
+    output logic [63:0]                  rvfi_ext_mcycle,
 `endif
 
     // CPU Control Signals
@@ -330,6 +332,8 @@ module ibex_core import ibex_pkg::*; #(
 
   logic        perf_instr_ret_wb;
   logic        perf_instr_ret_compressed_wb;
+  logic        perf_instr_ret_wb_spec;
+  logic        perf_instr_ret_compressed_wb_spec;
   logic        perf_iside_wait;
   logic        perf_dside_wait;
   logic        perf_mul_wait;
@@ -715,39 +719,41 @@ module ibex_core import ibex_pkg::*; #(
     .ResetAll       ( ResetAll       ),
     .WritebackStage ( WritebackStage )
   ) wb_stage_i (
-    .clk_i                          ( clk_i                        ),
-    .rst_ni                         ( rst_ni                       ),
-    .en_wb_i                        ( en_wb                        ),
-    .instr_type_wb_i                ( instr_type_wb                ),
-    .pc_id_i                        ( pc_id                        ),
-    .instr_is_compressed_id_i       ( instr_is_compressed_id       ),
-    .instr_perf_count_id_i          ( instr_perf_count_id          ),
+    .clk_i                               ( clk_i                             ),
+    .rst_ni                              ( rst_ni                            ),
+    .en_wb_i                             ( en_wb                             ),
+    .instr_type_wb_i                     ( instr_type_wb                     ),
+    .pc_id_i                             ( pc_id                             ),
+    .instr_is_compressed_id_i            ( instr_is_compressed_id            ),
+    .instr_perf_count_id_i               ( instr_perf_count_id               ),
 
-    .ready_wb_o                     ( ready_wb                     ),
-    .rf_write_wb_o                  ( rf_write_wb                  ),
-    .outstanding_load_wb_o          ( outstanding_load_wb          ),
-    .outstanding_store_wb_o         ( outstanding_store_wb         ),
-    .pc_wb_o                        ( pc_wb                        ),
-    .perf_instr_ret_wb_o            ( perf_instr_ret_wb            ),
-    .perf_instr_ret_compressed_wb_o ( perf_instr_ret_compressed_wb ),
+    .ready_wb_o                          ( ready_wb                          ),
+    .rf_write_wb_o                       ( rf_write_wb                       ),
+    .outstanding_load_wb_o               ( outstanding_load_wb               ),
+    .outstanding_store_wb_o              ( outstanding_store_wb              ),
+    .pc_wb_o                             ( pc_wb                             ),
+    .perf_instr_ret_wb_o                 ( perf_instr_ret_wb                 ),
+    .perf_instr_ret_compressed_wb_o      ( perf_instr_ret_compressed_wb      ),
+    .perf_instr_ret_wb_spec_o            ( perf_instr_ret_wb_spec            ),
+    .perf_instr_ret_compressed_wb_spec_o ( perf_instr_ret_compressed_wb_spec ),
 
-    .rf_waddr_id_i                  ( rf_waddr_id                  ),
-    .rf_wdata_id_i                  ( rf_wdata_id                  ),
-    .rf_we_id_i                     ( rf_we_id                     ),
+    .rf_waddr_id_i                       ( rf_waddr_id                       ),
+    .rf_wdata_id_i                       ( rf_wdata_id                       ),
+    .rf_we_id_i                          ( rf_we_id                          ),
 
-    .rf_wdata_lsu_i                 ( rf_wdata_lsu                 ),
-    .rf_we_lsu_i                    ( rf_we_lsu                    ),
+    .rf_wdata_lsu_i                      ( rf_wdata_lsu                      ),
+    .rf_we_lsu_i                         ( rf_we_lsu                         ),
 
-    .rf_wdata_fwd_wb_o              ( rf_wdata_fwd_wb              ),
+    .rf_wdata_fwd_wb_o                   ( rf_wdata_fwd_wb                   ),
 
-    .rf_waddr_wb_o                  ( rf_waddr_wb                  ),
-    .rf_wdata_wb_o                  ( rf_wdata_wb                  ),
-    .rf_we_wb_o                     ( rf_we_wb                     ),
+    .rf_waddr_wb_o                       ( rf_waddr_wb                       ),
+    .rf_wdata_wb_o                       ( rf_wdata_wb                       ),
+    .rf_we_wb_o                          ( rf_we_wb                          ),
 
-    .lsu_resp_valid_i               ( lsu_resp_valid               ),
-    .lsu_resp_err_i                 ( lsu_resp_err                 ),
+    .lsu_resp_valid_i                    ( lsu_resp_valid                    ),
+    .lsu_resp_err_i                      ( lsu_resp_err                      ),
 
-    .instr_done_wb_o                ( instr_done_wb                )
+    .instr_done_wb_o                     ( instr_done_wb                     )
   );
 
   /////////////////////////////
@@ -900,89 +906,91 @@ module ibex_core import ibex_pkg::*; #(
       .RV32M             ( RV32M             ),
       .RV32B             ( RV32B             )
   ) cs_registers_i (
-      .clk_i                   ( clk_i                        ),
-      .rst_ni                  ( rst_ni                       ),
+      .clk_i                       ( clk_i                             ),
+      .rst_ni                      ( rst_ni                            ),
 
       // Hart ID from outside
-      .hart_id_i               ( hart_id_i                    ),
-      .priv_mode_id_o          ( priv_mode_id                 ),
-      .priv_mode_if_o          ( priv_mode_if                 ),
-      .priv_mode_lsu_o         ( priv_mode_lsu                ),
+      .hart_id_i                   ( hart_id_i                         ),
+      .priv_mode_id_o              ( priv_mode_id                      ),
+      .priv_mode_if_o              ( priv_mode_if                      ),
+      .priv_mode_lsu_o             ( priv_mode_lsu                     ),
 
       // mtvec
-      .csr_mtvec_o             ( csr_mtvec                    ),
-      .csr_mtvec_init_i        ( csr_mtvec_init               ),
-      .boot_addr_i             ( boot_addr_i                  ),
+      .csr_mtvec_o                 ( csr_mtvec                         ),
+      .csr_mtvec_init_i            ( csr_mtvec_init                    ),
+      .boot_addr_i                 ( boot_addr_i                       ),
 
-      // Interface to CSRs     ( SRAM like                    )
-      .csr_access_i            ( csr_access                   ),
-      .csr_addr_i              ( csr_addr                     ),
-      .csr_wdata_i             ( csr_wdata                    ),
-      .csr_op_i                ( csr_op                       ),
-      .csr_op_en_i             ( csr_op_en                    ),
-      .csr_rdata_o             ( csr_rdata                    ),
+      // Interface to CSRs         ( SRAM like                         )
+      .csr_access_i                ( csr_access                        ),
+      .csr_addr_i                  ( csr_addr                          ),
+      .csr_wdata_i                 ( csr_wdata                         ),
+      .csr_op_i                    ( csr_op                            ),
+      .csr_op_en_i                 ( csr_op_en                         ),
+      .csr_rdata_o                 ( csr_rdata                         ),
 
-      // Interrupt related control signals
-      .irq_software_i          ( irq_software_i               ),
-      .irq_timer_i             ( irq_timer_i                  ),
-      .irq_external_i          ( irq_external_i               ),
-      .irq_fast_i              ( irq_fast_i                   ),
-      .nmi_mode_i              ( nmi_mode                     ),
-      .irq_pending_o           ( irq_pending_o                ),
-      .irqs_o                  ( irqs                         ),
-      .csr_mstatus_mie_o       ( csr_mstatus_mie              ),
-      .csr_mstatus_tw_o        ( csr_mstatus_tw               ),
-      .csr_mepc_o              ( csr_mepc                     ),
+      // Interrupt related cont    rol signals
+      .irq_software_i              ( irq_software_i                    ),
+      .irq_timer_i                 ( irq_timer_i                       ),
+      .irq_external_i              ( irq_external_i                    ),
+      .irq_fast_i                  ( irq_fast_i                        ),
+      .nmi_mode_i                  ( nmi_mode                          ),
+      .irq_pending_o               ( irq_pending_o                     ),
+      .irqs_o                      ( irqs                              ),
+      .csr_mstatus_mie_o           ( csr_mstatus_mie                   ),
+      .csr_mstatus_tw_o            ( csr_mstatus_tw                    ),
+      .csr_mepc_o                  ( csr_mepc                          ),
 
       // PMP
-      .csr_pmp_cfg_o           ( csr_pmp_cfg                  ),
-      .csr_pmp_addr_o          ( csr_pmp_addr                 ),
-      .csr_pmp_mseccfg_o       ( csr_pmp_mseccfg              ),
+      .csr_pmp_cfg_o               ( csr_pmp_cfg                       ),
+      .csr_pmp_addr_o              ( csr_pmp_addr                      ),
+      .csr_pmp_mseccfg_o           ( csr_pmp_mseccfg                   ),
 
       // debug
-      .csr_depc_o              ( csr_depc                     ),
-      .debug_mode_i            ( debug_mode                   ),
-      .debug_cause_i           ( debug_cause                  ),
-      .debug_csr_save_i        ( debug_csr_save               ),
-      .debug_single_step_o     ( debug_single_step            ),
-      .debug_ebreakm_o         ( debug_ebreakm                ),
-      .debug_ebreaku_o         ( debug_ebreaku                ),
-      .trigger_match_o         ( trigger_match                ),
+      .csr_depc_o                  ( csr_depc                          ),
+      .debug_mode_i                ( debug_mode                        ),
+      .debug_cause_i               ( debug_cause                       ),
+      .debug_csr_save_i            ( debug_csr_save                    ),
+      .debug_single_step_o         ( debug_single_step                 ),
+      .debug_ebreakm_o             ( debug_ebreakm                     ),
+      .debug_ebreaku_o             ( debug_ebreaku                     ),
+      .trigger_match_o             ( trigger_match                     ),
 
-      .pc_if_i                 ( pc_if                        ),
-      .pc_id_i                 ( pc_id                        ),
-      .pc_wb_i                 ( pc_wb                        ),
+      .pc_if_i                     ( pc_if                             ),
+      .pc_id_i                     ( pc_id                             ),
+      .pc_wb_i                     ( pc_wb                             ),
 
-      .data_ind_timing_o       ( data_ind_timing              ),
-      .dummy_instr_en_o        ( dummy_instr_en               ),
-      .dummy_instr_mask_o      ( dummy_instr_mask             ),
-      .dummy_instr_seed_en_o   ( dummy_instr_seed_en          ),
-      .dummy_instr_seed_o      ( dummy_instr_seed             ),
-      .icache_enable_o         ( icache_enable                ),
-      .csr_shadow_err_o        ( csr_shadow_err               ),
+      .data_ind_timing_o           ( data_ind_timing                   ),
+      .dummy_instr_en_o            ( dummy_instr_en                    ),
+      .dummy_instr_mask_o          ( dummy_instr_mask                  ),
+      .dummy_instr_seed_en_o       ( dummy_instr_seed_en               ),
+      .dummy_instr_seed_o          ( dummy_instr_seed                  ),
+      .icache_enable_o             ( icache_enable                     ),
+      .csr_shadow_err_o            ( csr_shadow_err                    ),
 
-      .csr_save_if_i           ( csr_save_if                  ),
-      .csr_save_id_i           ( csr_save_id                  ),
-      .csr_save_wb_i           ( csr_save_wb                  ),
-      .csr_restore_mret_i      ( csr_restore_mret_id          ),
-      .csr_restore_dret_i      ( csr_restore_dret_id          ),
-      .csr_save_cause_i        ( csr_save_cause               ),
-      .csr_mcause_i            ( exc_cause                    ),
-      .csr_mtval_i             ( csr_mtval                    ),
-      .illegal_csr_insn_o      ( illegal_csr_insn_id          ),
+      .csr_save_if_i               ( csr_save_if                       ),
+      .csr_save_id_i               ( csr_save_id                       ),
+      .csr_save_wb_i               ( csr_save_wb                       ),
+      .csr_restore_mret_i          ( csr_restore_mret_id               ),
+      .csr_restore_dret_i          ( csr_restore_dret_id               ),
+      .csr_save_cause_i            ( csr_save_cause                    ),
+      .csr_mcause_i                ( exc_cause                         ),
+      .csr_mtval_i                 ( csr_mtval                         ),
+      .illegal_csr_insn_o          ( illegal_csr_insn_id               ),
 
       // performance counter related signals
-      .instr_ret_i             ( perf_instr_ret_wb            ),
-      .instr_ret_compressed_i  ( perf_instr_ret_compressed_wb ),
-      .iside_wait_i            ( perf_iside_wait              ),
-      .jump_i                  ( perf_jump                    ),
-      .branch_i                ( perf_branch                  ),
-      .branch_taken_i          ( perf_tbranch                 ),
-      .mem_load_i              ( perf_load                    ),
-      .mem_store_i             ( perf_store                   ),
-      .dside_wait_i            ( perf_dside_wait              ),
-      .mul_wait_i              ( perf_mul_wait                ),
-      .div_wait_i              ( perf_div_wait                )
+      .instr_ret_i                 ( perf_instr_ret_wb                 ),
+      .instr_ret_compressed_i      ( perf_instr_ret_compressed_wb      ),
+      .instr_ret_spec_i            ( perf_instr_ret_wb_spec            ),
+      .instr_ret_compressed_spec_i ( perf_instr_ret_compressed_wb_spec ),
+      .iside_wait_i                ( perf_iside_wait                   ),
+      .jump_i                      ( perf_jump                         ),
+      .branch_i                    ( perf_branch                       ),
+      .branch_taken_i              ( perf_tbranch                      ),
+      .mem_load_i                  ( perf_load                         ),
+      .mem_store_i                 ( perf_store                        ),
+      .dside_wait_i                ( perf_dside_wait                   ),
+      .mul_wait_i                  ( perf_mul_wait                     ),
+      .div_wait_i                  ( perf_div_wait                     )
   );
 
   // These assertions are in top-level as instr_valid_id required as the enable term
@@ -1109,13 +1117,20 @@ module ibex_core import ibex_pkg::*; #(
   logic        rvfi_id_done;
   logic        rvfi_wb_done;
 
+  logic            new_nmi;
   ibex_pkg::irqs_t captured_mip;
+  logic            captured_nmi;
   logic            captured_debug_req;
   logic            captured_valid;
+
   // RVFI extension for co-simulation support
   // debug_req and MIP captured at IF -> ID transition so one extra stage
-  ibex_pkg::irqs_t rvfi_ext_stage_mip       [RVFI_STAGES+1];
-  logic            rvfi_ext_stage_debug_req [RVFI_STAGES+1];
+  ibex_pkg::irqs_t rvfi_ext_stage_mip          [RVFI_STAGES+1];
+  logic            rvfi_ext_stage_nmi          [RVFI_STAGES+1];
+  logic            rvfi_ext_stage_debug_req    [RVFI_STAGES+1];
+  logic [63:0]     rvfi_ext_stage_mcycle       [RVFI_STAGES];
+
+
 
   logic        rvfi_stage_valid_d   [RVFI_STAGES];
 
@@ -1158,7 +1173,9 @@ module ibex_core import ibex_pkg::*; #(
     rvfi_ext_mip[CSR_MFIX_BIT_HIGH:CSR_MFIX_BIT_LOW] = rvfi_ext_stage_mip[RVFI_STAGES].irq_fast;
   end
 
+  assign rvfi_ext_nmi       = rvfi_ext_stage_nmi[RVFI_STAGES];
   assign rvfi_ext_debug_req = rvfi_ext_stage_debug_req[RVFI_STAGES];
+  assign rvfi_ext_mcycle    = rvfi_ext_stage_mcycle[RVFI_STAGES-1];
 
   if (WritebackStage) begin : gen_rvfi_wb_stage
     logic unused_instr_new_id;
@@ -1205,14 +1222,20 @@ module ibex_core import ibex_pkg::*; #(
 
   assign rvfi_stage_order_d = dummy_instr_id ? rvfi_stage_order[0] : rvfi_stage_order[0] + 64'd1;
 
+  assign new_nmi = irq_nm_i & ~nmi_mode & ~debug_mode;
+
+  // TODO: Neaten up, can have wires for condition that causes us to capture irq/debug/nmi and
+  // condition meaning new instruction heading into ID
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       captured_valid     <= 1'b0;
       captured_mip       <= '0;
+      captured_nmi       <= 1'b0;
       captured_debug_req <= 1'b0;
     end else  begin
-      if (~instr_valid_id & ((irq_pending_o & csr_mstatus_mie) | debug_req_i) & ~captured_valid) begin
+      if (~instr_valid_id & ((irq_pending_o & csr_mstatus_mie) | debug_req_i | new_nmi) & ~captured_valid) begin
         captured_valid     <= 1'b1;
+        captured_nmi       <= new_nmi;
         captured_mip       <= cs_registers_i.mip;
         captured_debug_req <= debug_req_i;
       end
@@ -1223,13 +1246,20 @@ module ibex_core import ibex_pkg::*; #(
     end
   end
 
+  // TODO: Implement a mirrored nmi mode in the cosim class? Danger here an actual NMI gets missed.
+  // Maybe an assert instead to check nmi_mode works properly?
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       rvfi_ext_stage_mip[0]       <= '0;
-      rvfi_ext_stage_debug_req[0] <= 0;
+      rvfi_ext_stage_nmi[0]       <= '0;
+      rvfi_ext_stage_debug_req[0] <= '0;
     end else if (if_stage_i.instr_valid_id_d & if_stage_i.instr_new_id_d) begin
       rvfi_ext_stage_mip[0]       <= instr_valid_id | ~captured_valid ? cs_registers_i.mip :
                                                                         captured_mip;
+      rvfi_ext_stage_nmi[0]       <= instr_valid_id | ~captured_valid ? new_nmi :
+                                                                        captured_nmi;
+
+
       rvfi_ext_stage_debug_req[0] <= instr_valid_id | ~captured_valid ? debug_req_i        :
                                                                         captured_debug_req;
     end
@@ -1238,29 +1268,33 @@ module ibex_core import ibex_pkg::*; #(
   for (genvar i = 0;i < RVFI_STAGES; i = i + 1) begin : g_rvfi_stages
     always_ff @(posedge clk_i or negedge rst_ni) begin
       if (!rst_ni) begin
-        rvfi_stage_halt[i]      <= '0;
-        rvfi_stage_trap[i]      <= '0;
-        rvfi_stage_intr[i]      <= '0;
-        rvfi_stage_order[i]     <= '0;
-        rvfi_stage_insn[i]      <= '0;
-        rvfi_stage_mode[i]      <= {PRIV_LVL_M};
-        rvfi_stage_ixl[i]       <= CSR_MISA_MXL;
-        rvfi_stage_rs1_addr[i]  <= '0;
-        rvfi_stage_rs2_addr[i]  <= '0;
-        rvfi_stage_rs3_addr[i]  <= '0;
-        rvfi_stage_pc_rdata[i]  <= '0;
-        rvfi_stage_pc_wdata[i]  <= '0;
-        rvfi_stage_mem_rmask[i] <= '0;
-        rvfi_stage_mem_wmask[i] <= '0;
-        rvfi_stage_valid[i]     <= '0;
-        rvfi_stage_rs1_rdata[i] <= '0;
-        rvfi_stage_rs2_rdata[i] <= '0;
-        rvfi_stage_rs3_rdata[i] <= '0;
-        rvfi_stage_rd_wdata[i]  <= '0;
-        rvfi_stage_rd_addr[i]   <= '0;
-        rvfi_stage_mem_rdata[i] <= '0;
-        rvfi_stage_mem_wdata[i] <= '0;
-        rvfi_stage_mem_addr[i]  <= '0;
+        rvfi_stage_halt[i]            <= '0;
+        rvfi_stage_trap[i]            <= '0;
+        rvfi_stage_intr[i]            <= '0;
+        rvfi_stage_order[i]           <= '0;
+        rvfi_stage_insn[i]            <= '0;
+        rvfi_stage_mode[i]            <= {PRIV_LVL_M};
+        rvfi_stage_ixl[i]             <= CSR_MISA_MXL;
+        rvfi_stage_rs1_addr[i]        <= '0;
+        rvfi_stage_rs2_addr[i]        <= '0;
+        rvfi_stage_rs3_addr[i]        <= '0;
+        rvfi_stage_pc_rdata[i]        <= '0;
+        rvfi_stage_pc_wdata[i]        <= '0;
+        rvfi_stage_mem_rmask[i]       <= '0;
+        rvfi_stage_mem_wmask[i]       <= '0;
+        rvfi_stage_valid[i]           <= '0;
+        rvfi_stage_rs1_rdata[i]       <= '0;
+        rvfi_stage_rs2_rdata[i]       <= '0;
+        rvfi_stage_rs3_rdata[i]       <= '0;
+        rvfi_stage_rd_wdata[i]        <= '0;
+        rvfi_stage_rd_addr[i]         <= '0;
+        rvfi_stage_mem_rdata[i]       <= '0;
+        rvfi_stage_mem_wdata[i]       <= '0;
+        rvfi_stage_mem_addr[i]        <= '0;
+        rvfi_ext_stage_mip[i+1]       <= '0;
+        rvfi_ext_stage_nmi[i+1]       <= '0;
+        rvfi_ext_stage_debug_req[i+1] <= '0;
+        rvfi_ext_stage_mcycle[i]      <= '0;
       end else begin
         rvfi_stage_valid[i] <= rvfi_stage_valid_d[i];
 
@@ -1268,30 +1302,31 @@ module ibex_core import ibex_pkg::*; #(
           if(rvfi_id_done) begin
             rvfi_stage_halt[i]      <= '0;
             // TODO: Sort this out for writeback stage
-            rvfi_stage_trap[i]      <= rvfi_trap_id;
-            rvfi_stage_intr[i]      <= rvfi_intr_d;
-            rvfi_stage_order[i]     <= rvfi_stage_order_d;
-            rvfi_stage_insn[i]      <= rvfi_insn_id;
-            rvfi_stage_mode[i]      <= {priv_mode_id};
-            rvfi_stage_ixl[i]       <= CSR_MISA_MXL;
-            rvfi_stage_rs1_addr[i]  <= rvfi_rs1_addr_d;
-            rvfi_stage_rs2_addr[i]  <= rvfi_rs2_addr_d;
-            rvfi_stage_rs3_addr[i]  <= rvfi_rs3_addr_d;
-            rvfi_stage_pc_rdata[i]  <= pc_id;
-            rvfi_stage_pc_wdata[i]  <= pc_set ? branch_target_ex : pc_if;
-            rvfi_stage_mem_rmask[i] <= rvfi_mem_mask_int;
-            rvfi_stage_mem_wmask[i] <= data_we_o ? rvfi_mem_mask_int : 4'b0000;
-            rvfi_stage_rs1_rdata[i] <= rvfi_rs1_data_d;
-            rvfi_stage_rs2_rdata[i] <= rvfi_rs2_data_d;
-            rvfi_stage_rs3_rdata[i] <= rvfi_rs3_data_d;
-            rvfi_stage_rd_addr[i]   <= rvfi_rd_addr_d;
-            rvfi_stage_rd_wdata[i]  <= rvfi_rd_wdata_d;
-            rvfi_stage_mem_rdata[i] <= rvfi_mem_rdata_d;
-            rvfi_stage_mem_wdata[i] <= rvfi_mem_wdata_d;
-            rvfi_stage_mem_addr[i]  <= rvfi_mem_addr_d;
-
+            rvfi_stage_trap[i]            <= rvfi_trap_id;
+            rvfi_stage_intr[i]            <= rvfi_intr_d;
+            rvfi_stage_order[i]           <= rvfi_stage_order_d;
+            rvfi_stage_insn[i]            <= rvfi_insn_id;
+            rvfi_stage_mode[i]            <= {priv_mode_id};
+            rvfi_stage_ixl[i]             <= CSR_MISA_MXL;
+            rvfi_stage_rs1_addr[i]        <= rvfi_rs1_addr_d;
+            rvfi_stage_rs2_addr[i]        <= rvfi_rs2_addr_d;
+            rvfi_stage_rs3_addr[i]        <= rvfi_rs3_addr_d;
+            rvfi_stage_pc_rdata[i]        <= pc_id;
+            rvfi_stage_pc_wdata[i]        <= pc_set ? branch_target_ex : pc_if;
+            rvfi_stage_mem_rmask[i]       <= rvfi_mem_mask_int;
+            rvfi_stage_mem_wmask[i]       <= data_we_o ? rvfi_mem_mask_int : 4'b0000;
+            rvfi_stage_rs1_rdata[i]       <= rvfi_rs1_data_d;
+            rvfi_stage_rs2_rdata[i]       <= rvfi_rs2_data_d;
+            rvfi_stage_rs3_rdata[i]       <= rvfi_rs3_data_d;
+            rvfi_stage_rd_addr[i]         <= rvfi_rd_addr_d;
+            rvfi_stage_rd_wdata[i]        <= rvfi_rd_wdata_d;
+            rvfi_stage_mem_rdata[i]       <= rvfi_mem_rdata_d;
+            rvfi_stage_mem_wdata[i]       <= rvfi_mem_wdata_d;
+            rvfi_stage_mem_addr[i]        <= rvfi_mem_addr_d;
             rvfi_ext_stage_mip[i+1]       <= rvfi_ext_stage_mip[i];
+            rvfi_ext_stage_nmi[i+1]       <= rvfi_ext_stage_nmi[i];
             rvfi_ext_stage_debug_req[i+1] <= rvfi_ext_stage_debug_req[i];
+            rvfi_ext_stage_mcycle[i]      <= cs_registers_i.mcycle_counter_i.counter_val_o;
           end
         end else begin
           if(rvfi_wb_done) begin
@@ -1324,7 +1359,9 @@ module ibex_core import ibex_pkg::*; #(
             rvfi_stage_mem_rdata[i] <= rvfi_mem_rdata_d;
 
             rvfi_ext_stage_mip[i+1]       <= rvfi_ext_stage_mip[i];
+            rvfi_ext_stage_nmi[i+1]       <= rvfi_ext_stage_nmi[i];
             rvfi_ext_stage_debug_req[i+1] <= rvfi_ext_stage_debug_req[i];
+            rvfi_ext_stage_mcycle[i]      <= rvfi_ext_stage_mcycle[i-1];
           end
         end
       end
