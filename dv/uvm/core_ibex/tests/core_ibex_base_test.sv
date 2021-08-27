@@ -123,7 +123,9 @@ class core_ibex_base_test extends uvm_test;
     while ($fread(r8,f_bin)) begin
       `uvm_info(`gfn, $sformatf("Init mem [0x%h] = 0x%0h", addr, r8), UVM_FULL)
       mem.write(addr, r8);
-      env.cosim_agent.write_mem_byte(addr, r8);
+      if (env.cosim_agent != null) begin
+        env.cosim_agent.write_mem_byte(addr, r8);
+      end
       addr++;
     end
   endfunction
