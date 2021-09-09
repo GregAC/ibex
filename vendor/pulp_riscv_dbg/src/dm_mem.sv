@@ -25,6 +25,8 @@ module dm_mem #(
   input  logic                             clk_i,       // Clock
   input  logic                             rst_ni,      // debug module reset
 
+  input  logic                             ndmreset_i,
+
   output logic [NrHarts-1:0]               debug_req_o,
   input  logic [19:0]                      hartsel_i,
   // from Ctrl and Status register
@@ -111,9 +113,9 @@ module dm_mem #(
   assign resumereq_wdata_aligned = NrHartsAligned'(resumereq_i);
 
   assign halted_q_aligned        = NrHartsAligned'(halted_q);
-  assign halted_d                = NrHarts'(halted_d_aligned);
+  assign halted_d                = ndmreset_i ? '0 : NrHarts'(halted_d_aligned);
   assign resuming_q_aligned      = NrHartsAligned'(resuming_q);
-  assign resuming_d              = NrHarts'(resuming_d_aligned);
+  assign resuming_d              = ndmreset_i ? '0 : NrHarts'(resuming_d_aligned);
 
   // distinguish whether we need to forward data from the ROM or the FSM
   // latch the address for this

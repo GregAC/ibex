@@ -30,12 +30,4 @@ reset_config none
 debug_level 2
 
 init
-#halt
-echo "Halt done"
-load_image /home/greg/work/ibex_area/ibex/examples/sw/simple_system/super_system_gpio/super_system_gpio.elf 0x0
-verify_image /home/greg/work/ibex_area/ibex/examples/sw/simple_system/super_system_gpio/super_system_gpio.elf 0x0
-echo "Load done"
-reset run
-exit
-reset
-exit
+halt

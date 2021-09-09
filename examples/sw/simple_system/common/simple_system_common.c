@@ -174,9 +174,9 @@ uint64_t timer_read(void) {
   uint32_t current_time;
   // check if time overflowed while reading and try again
   do {
-    current_timeh = DEV_READ(TIMER_BASE + TIMER_MTIMEH, 0);
-    current_time = DEV_READ(TIMER_BASE + TIMER_MTIME, 0);
-  } while (current_timeh != DEV_READ(TIMER_BASE + TIMER_MTIMEH, 0));
+    current_timeh = DEV_READ(TIMER_BASE + TIMER_MTIMEH);
+    current_time = DEV_READ(TIMER_BASE + TIMER_MTIME);
+  } while (current_timeh != DEV_READ(TIMER_BASE + TIMER_MTIMEH));
   uint64_t final_time = ((uint64_t)current_timeh << 32) | current_time;
   return final_time;
 }

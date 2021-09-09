@@ -86,6 +86,7 @@ module dm_top #(
   logic                             sbbusy;
   logic                             sberror_valid;
   logic [2:0]                       sberror;
+  logic                             ndmreset;
 
   dm::dmi_req_t  dmi_req;
   dm::dmi_resp_t dmi_rsp;
@@ -106,6 +107,8 @@ module dm_top #(
     assign hartinfo[i] = DebugHartInfo;
   end
 
+  assign ndmreset_o = ndmreset;
+
   dm_csrs #(
     .NrHarts(NrHarts),
     .BusWidth(BusWidth),
@@ -121,7 +124,7 @@ module dm_top #(
     .dmi_resp_valid_o        ( dmi_rsp_valid         ),
     .dmi_resp_ready_i        ( dmi_rsp_ready         ),
     .dmi_resp_o              ( dmi_rsp               ),
-    .ndmreset_o              ( ndmreset_o            ),
+    .ndmreset_o              ( ndmreset              ),
     .dmactive_o              ( dmactive_o            ),
     .hartsel_o               ( hartsel               ),
     .hartinfo_i              ( hartinfo              ),
@@ -201,6 +204,7 @@ module dm_top #(
   ) i_dm_mem (
     .clk_i                   ( clk_i                 ),
     .rst_ni                  ( rst_ni                ),
+    .ndmreset_i              ( ndmreset              ),
     .debug_req_o             ( debug_req_o           ),
     .hartsel_i               ( hartsel               ),
     .haltreq_i               ( haltreq               ),

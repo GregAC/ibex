@@ -97,6 +97,8 @@ module dm_top #(
   logic                             sberror_valid;
   logic [2:0]                       sberror;
 
+  logic                             ndmreset;
+
 
   dm_csrs #(
     .NrHarts(NrHarts),
@@ -113,7 +115,7 @@ module dm_top #(
     .dmi_resp_valid_o,
     .dmi_resp_ready_i,
     .dmi_resp_o,
-    .ndmreset_o,
+    .ndmreset_o              ( ndmreset              ),
     .dmactive_o,
     .hartsel_o               ( hartsel               ),
     .hartinfo_i,
@@ -191,6 +193,7 @@ module dm_top #(
   ) i_dm_mem (
     .clk_i,
     .rst_ni,
+    .ndmreset_i              ( ndmreset              ),
     .debug_req_o,
     .hartsel_i               ( hartsel               ),
     .haltreq_i               ( haltreq               ),

@@ -5,7 +5,8 @@ module ibex_super_system #(
   input logic                 clk_sys_i,
   input logic                 rst_sys_ni,
 
-  output logic [GpoWidth-1:0] gp_o
+  output logic [GpoWidth-1:0] gp_o,
+  output logic                uart_tx_o
 );
   parameter logic [31:0] MEM_SIZE     = 64 * 1024; // 64 kB
   parameter logic [31:0] MEM_START    = 32'h00100000;
@@ -18,6 +19,10 @@ module ibex_super_system #(
   parameter logic [31:0] DEBUG_START  = 32'h1a110000;
   parameter logic [31:0] DEBUG_SIZE   = 64 * 1024; // 64 kB
   parameter logic [31:0] DEBUG_MASK   = ~(DEBUG_SIZE-1);
+
+  parameter logic [31:0] UART_SIZE    = 4 * 1024; // 4kB
+  parameter logic [31:0] UART_START   = 32'h80001000;
+  parameter logic [31:0] UART_MASK    = ~(UART_SIZE-1);
 
   // debug functionality is optional
   localparam bit DBG = 1;
@@ -32,10 +37,11 @@ module ibex_super_system #(
   typedef enum int {
     Ram,
     Gpio,
+    Uart,
     DbgDev
   } bus_device_e;
 
-  localparam int NrDevices = DBG ? 3 : 2;
+  localparam int NrDevices = DBG ? 4 : 3;
   localparam int NrHosts = DBG ? 2 : 1;
 
   // interrupts
@@ -95,6 +101,8 @@ module ibex_super_system #(
   assign cfg_device_addr_mask[Ram]    = MEM_MASK;
   assign cfg_device_addr_base[Gpio]   = GPIO_START;
   assign cfg_device_addr_mask[Gpio]   = GPIO_MASK;
+  assign cfg_device_addr_base[Uart]   = UART_START;
+  assign cfg_device_addr_mask[Uart]   = UART_MASK;
 
   if (DBG) begin : g_dbg_device_cfg
     assign cfg_device_addr_base[DbgDev] = DEBUG_START;
@@ -105,6 +113,7 @@ module ibex_super_system #(
   // Tie-off unused error signals
   assign device_err[Ram] = 1'b0;
   assign device_err[Gpio] = 1'b0;
+  assign device_err[Uart] = 1'b0;
 
   bus #(
     .NrDevices    ( NrDevices ),
@@ -249,6 +258,23 @@ module ibex_super_system #(
     .device_rdata_o (device_rdata[Gpio]),
 
     .gp_o
+  );
+
+  uart #(
+    .ClockFrequency(50_000_000)
+  ) u_uart (
+    .clk_i (clk_sys_i),
+    .rst_ni(rst_sys_ni),
+
+    .device_req_i   (device_req[Uart]),
+    .device_addr_i  (device_addr[Uart]),
+    .device_we_i    (device_we[Uart]),
+    .device_be_i    (device_be[Uart]),
+    .device_wdata_i (device_wdata[Uart]),
+    .device_rvalid_o(device_rvalid[Uart]),
+    .device_rdata_o (device_rdata[Uart]),
+
+    .uart_tx_o
   );
 
   assign dbg_slave_req         = device_req[DbgDev] | dbg_instr_req;
