@@ -1404,7 +1404,7 @@ package riscv_instr_pkg;
       end
     end
     // Reserve space from kernel stack to save all 32 GPR except for x0
-    instr.push_back($sformatf("1: addi x%0d, x%0d, -%0d", sp, sp, 31 * (XLEN/8)));
+    instr.push_back($sformatf("1: addi x%0d, x%0d, -%0d", sp, sp, 32 * (XLEN/8)));
     // Push all GPRs to kernel stack
     for(int i = 1; i < 32; i++) begin
       instr.push_back($sformatf("%0s  x%0d, %0d(x%0d)", store_instr, i, i * (XLEN/8), sp));
@@ -1424,7 +1424,7 @@ package riscv_instr_pkg;
       instr.push_back($sformatf("%0s  x%0d, %0d(x%0d)", load_instr, i, i * (XLEN/8), sp));
     end
     // Restore kernel stack pointer
-    instr.push_back($sformatf("addi x%0d, x%0d, %0d", sp, sp, 31 * (XLEN/8)));
+    instr.push_back($sformatf("addi x%0d, x%0d, %0d", sp, sp, 32 * (XLEN/8)));
     if (scratch inside {implemented_csr}) begin
       // Move SP to TP
       instr.push_back($sformatf("add x%0d, x%0d, zero", tp, sp));
