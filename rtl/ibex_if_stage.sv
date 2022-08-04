@@ -95,7 +95,8 @@ module ibex_if_stage import ibex_pkg::*; #(
   input  logic                        dummy_instr_seed_en_i,
   input  logic [31:0]                 dummy_instr_seed_i,
   input  logic                        icache_enable_i,
-  input  logic                        icache_inval_i,
+  input  logic                        icache_inval_req_i,
+  output logic                        icache_inval_ack_o,
   output logic                        icache_ecc_error_o,
 
   // jump and branch target
@@ -303,7 +304,8 @@ module ibex_if_stage import ibex_pkg::*; #(
         .ic_scr_key_valid_i  ( ic_scr_key_valid_i         ),
 
         .icache_enable_i     ( icache_enable_i            ),
-        .icache_inval_i      ( icache_inval_i             ),
+        .icache_inval_ack_o  ( icache_inval_ack_o         ),
+        .icache_inval_req_i  ( icache_inval_req_i         ),
         .busy_o              ( prefetch_busy              ),
         .ecc_error_o         ( icache_ecc_error_o         )
     );
@@ -341,7 +343,7 @@ module ibex_if_stage import ibex_pkg::*; #(
     logic [TagSizeECC-1:0]  unused_tag_ram_input [IC_NUM_WAYS];
     logic [LineSizeECC-1:0] unused_data_ram_input [IC_NUM_WAYS];
     assign unused_icen           = icache_enable_i;
-    assign unused_icinv          = icache_inval_i;
+    assign unused_icinv          = icache_inval_req_i;
     assign unused_tag_ram_input  = ic_tag_rdata_i;
     assign unused_data_ram_input = ic_data_rdata_i;
     assign unused_scr_key_valid  = ic_scr_key_valid_i;
@@ -354,6 +356,7 @@ module ibex_if_stage import ibex_pkg::*; #(
     assign ic_data_addr_o        = 'b0;
     assign ic_data_wdata_o       = 'b0;
     assign icache_ecc_error_o    = 'b0;
+    assign icache_inval_ack_o    = 'b0;
 
 `ifndef SYNTHESIS
     // If we don't instantiate an icache and this is a simulation then we have a problem because the

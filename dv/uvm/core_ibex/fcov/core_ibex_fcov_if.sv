@@ -193,7 +193,7 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
 
   `ASSERT(InstrCategoryFenceICorrect,
       id_instr_category == InstrCategoryFenceI && id_stage_i.instr_first_cycle |->
-      id_stage_i.icache_inval_o)
+      id_stage_i.icache_inval_req_o)
 
 
 

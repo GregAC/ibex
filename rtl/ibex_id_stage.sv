@@ -44,7 +44,7 @@ module ibex_id_stage #(
   output logic                      instr_first_cycle_id_o,
   output logic                      instr_valid_clear_o,   // kill instr in IF-ID reg
   output logic                      id_in_ready_o,         // ID stage is ready for next instr
-  output logic                      icache_inval_o,
+  output logic                      icache_inval_req_o,
 
   // Jumps and branches
   input  logic                      branch_decision_i,
@@ -287,6 +287,8 @@ module ibex_id_stage #(
   logic [31:0] alu_operand_a;
   logic [31:0] alu_operand_b;
 
+  logic        icache_inval;
+
   /////////////
   // LSU Mux //
   /////////////
@@ -441,7 +443,7 @@ module ibex_id_stage #(
     .wfi_insn_o    (wfi_insn_dec),
     .jump_set_o    (jump_set_dec),
     .branch_taken_i(branch_taken),
-    .icache_inval_o(icache_inval_o),
+    .icache_inval_o(icache_inval),
 
     // from IF-ID pipeline register
     .instr_first_cycle_i(instr_first_cycle),
@@ -662,6 +664,8 @@ module ibex_id_stage #(
   assign multdiv_signed_mode_ex_o    = multdiv_signed_mode;
   assign multdiv_operand_a_ex_o      = rf_rdata_a_fwd;
   assign multdiv_operand_b_ex_o      = rf_rdata_b_fwd;
+
+  assign icache_inval_req_o          = icache_inval & instr_first_cycle;
 
   ////////////////////////
   // Branch set control //

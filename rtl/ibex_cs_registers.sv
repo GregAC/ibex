@@ -125,13 +125,15 @@ module ibex_cs_registers #(
   import ibex_pkg::*;
 
   localparam int unsigned RV32BEnabled = (RV32B == RV32BNone) ? 0 : 1;
+  localparam int unsigned RV32BExtra = ((RV32B == RV32BOTEarlGrey) || (RV32B == RV32BFull)) ? 1 : 0;
   localparam int unsigned RV32MEnabled = (RV32M == RV32MNone) ? 0 : 1;
   localparam int unsigned PMPAddrWidth = (PMPGranularity > 0) ? 33 - PMPGranularity : 32;
 
   // misa
   localparam logic [31:0] MISA_VALUE =
       (0                 <<  0)  // A - Atomic Instructions extension
-    | (RV32BEnabled      <<  1)  // B - Bit-Manipulation extension
+    //| (RV32BEnabled      <<  1)  // B - Bit-Manipulation extension
+    | (0                 <<  1)  // B - Bit-Manipulation extension
     | (1                 <<  2)  // C - Compressed extension
     | (0                 <<  3)  // D - Double precision floating-point extension
     | (32'(RV32E)        <<  4)  // E - RV32E base ISA
@@ -141,7 +143,7 @@ module ibex_cs_registers #(
     | (0                 << 13)  // N - User level interrupts supported
     | (0                 << 18)  // S - Supervisor mode implemented
     | (1                 << 20)  // U - User mode implemented
-    | (0                 << 23)  // X - Non-standard extensions present
+    | (RV32BExtra        << 23)  // X - Non-standard extensions present
     | (32'(CSR_MISA_MXL) << 30); // M-XLEN
 
   typedef struct packed {
@@ -566,9 +568,9 @@ module ibex_cs_registers #(
               mprv: csr_wdata_int[CSR_MSTATUS_MPRV_BIT],
               tw:   csr_wdata_int[CSR_MSTATUS_TW_BIT]
           };
-          // Convert illegal values to M-mode
+          // Convert illegal values to U-mode
           if ((mstatus_d.mpp != PRIV_LVL_M) && (mstatus_d.mpp != PRIV_LVL_U)) begin
-            mstatus_d.mpp = PRIV_LVL_M;
+            mstatus_d.mpp = PRIV_LVL_U;
           end
         end
 
@@ -1254,8 +1256,11 @@ module ibex_cs_registers #(
 
     // activate all
     for (int i = 0; i < 32; i++) begin : gen_mhpmevent_active
-      mhpmevent[i]    =   '0;
-      mhpmevent[i][i] = 1'b1;
+      mhpmevent[i] = '0;
+
+      if (i >= 3) begin
+        mhpmevent[i][i - 3] = 1'b1;
+      end
     end
 
     // deactivate
@@ -1358,7 +1363,7 @@ module ibex_cs_registers #(
     logic [29-MHPMCounterNum-1:0] unused_mhphcounterh_we;
     logic [29-MHPMCounterNum-1:0] unused_mhphcounter_incr;
 
-    assign mcountinhibit = {{29 - MHPMCounterNum{1'b1}}, mcountinhibit_q};
+    assign mcountinhibit = {{29 - MHPMCounterNum{1'b0}}, mcountinhibit_q};
     // Lint tieoffs for unused bits
     assign unused_mhphcounter_we   = mhpmcounter_we[31:MHPMCounterNum+3];
     assign unused_mhphcounterh_we  = mhpmcounterh_we[31:MHPMCounterNum+3];

@@ -66,6 +66,8 @@ class SpikeCosim : public simif_t, public Cosim {
 
   void leave_nmi_mode();
 
+  void initial_proc_setup();
+
   int insn_cnt;
 
  public:

@@ -61,7 +61,8 @@ module ibex_icache import ibex_pkg::*; #(
 
   // Cache status
   input  logic                           icache_enable_i,
-  input  logic                           icache_inval_i,
+  input  logic                           icache_inval_req_i,
+  output logic                           icache_inval_ack_o,
   output logic                           busy_o,
   output logic                           ecc_error_o
 );
@@ -248,7 +249,7 @@ module ibex_icache import ibex_pkg::*; #(
                              ~ecc_write_req;
   // Qualified lookup grant to mask ram signals in IC1 if access was not made
   assign lookup_actual_ic0 = lookup_grant_ic0 & icache_enable_i & ~inval_prog_q &
-                             ~icache_inval_i & ~inval_lock & ~start_inval;
+                             ~icache_inval_req_i & ~inval_lock & ~start_inval;
 
   // Tagram
   assign tag_req_ic0   = lookup_req_ic0 | fill_req_ic0 | inval_prog_q | ecc_write_req;
@@ -535,7 +536,7 @@ module ibex_icache import ibex_pkg::*; #(
     end
 
     assign fill_cache_new = (branch_i | (|cache_cnt_q)) & icache_enable_i &
-                            ~icache_inval_i & ~inval_lock & ~inval_prog_q;
+                            ~icache_inval_req_i & ~inval_lock & ~inval_prog_q;
 
   end else begin : gen_cache_all
 
@@ -603,7 +604,7 @@ module ibex_icache import ibex_pkg::*; #(
     // Any invalidation or disabling of the cache while the buffer is busy will stop allocation
     assign fill_cache_d[fb]    = (fill_alloc[fb] & fill_cache_new) |
                                  (fill_cache_q[fb] & fill_busy_q[fb] &
-                                  icache_enable_i & ~icache_inval_i & ~inval_lock);
+                                  icache_enable_i & ~icache_inval_req_i & ~inval_lock);
     // Record whether the request hit in the cache
     assign fill_hit_ic1[fb]    = lookup_valid_ic1 & fill_in_ic1[fb] & tag_hit_ic1 & ~ecc_err_ic1;
     assign fill_hit_d[fb]      = fill_hit_ic1[fb] | (fill_hit_q[fb] & fill_busy_q[fb]);
@@ -1064,7 +1065,9 @@ module ibex_icache import ibex_pkg::*; #(
   // We need to save the invalidation request inside a register. That way we can wait
   // until we have a valid scrambling key to do it. Since the key itself is needed for
   // starting to fill in the RAMs and read from them, ICache also needs to stop operating.
-  assign inval_req_d = (inval_req_q | icache_inval_i) & ~(inval_done & inval_prog_q);
+  assign inval_req_d = (inval_req_q | icache_inval_req_i) & ~(inval_done & inval_prog_q);
+
+  assign icache_inval_ack_o = icache_inval_req_i & inval_req_d & ~inval_req_q;
 
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin

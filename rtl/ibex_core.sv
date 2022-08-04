@@ -186,7 +186,8 @@ module ibex_core import ibex_pkg::*; #(
   logic        dummy_instr_seed_en;
   logic [31:0] dummy_instr_seed;
   logic        icache_enable;
-  logic        icache_inval;
+  logic        icache_inval_ack;
+  logic        icache_inval_req;
   logic        icache_ecc_error;
   logic        pc_mismatch_alert;
   logic        csr_shadow_err;
@@ -443,7 +444,8 @@ module ibex_core import ibex_pkg::*; #(
     .dummy_instr_seed_en_i (dummy_instr_seed_en),
     .dummy_instr_seed_i    (dummy_instr_seed),
     .icache_enable_i       (icache_enable),
-    .icache_inval_i        (icache_inval),
+    .icache_inval_req_i    (icache_inval_req),
+    .icache_inval_ack_o    (icache_inval_ack),
     .icache_ecc_error_o    (icache_ecc_error),
 
     // branch targets
@@ -531,7 +533,7 @@ module ibex_core import ibex_pkg::*; #(
     .nt_branch_addr_o      (nt_branch_addr),
     .exc_pc_mux_o          (exc_pc_mux_id),
     .exc_cause_o           (exc_cause),
-    .icache_inval_o        (icache_inval),
+    .icache_inval_req_o    (icache_inval_req),
 
     .instr_fetch_err_i      (instr_fetch_err),
     .instr_fetch_err_plus2_i(instr_fetch_err_plus2),
@@ -649,7 +651,7 @@ module ibex_core import ibex_pkg::*; #(
     .instr_id_done_o  (instr_id_done)
   );
 
-  assign icache_inval_o = icache_inval;
+  assign icache_inval_o = icache_inval_ack;
   // for RVFI only
   assign unused_illegal_insn_id = illegal_insn_id;
 

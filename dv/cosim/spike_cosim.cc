@@ -46,7 +46,9 @@ SpikeCosim::SpikeCosim(const std::string &isa_string, uint32_t start_pc,
       std::make_unique<processor_t>(isa_string.c_str(), "MU", DEFAULT_VARCH,
                                     this, 0, false, log_file, std::cerr);
 #else
+  std::cout << "ISA string: " << isa_string.c_str() << "\n";
   isa_parser = std::make_unique<isa_parser_t>(isa_string.c_str(), "MU");
+  std::cout << "ISA parser done\n";
 
   processor = std::make_unique<processor_t>(
       isa_parser.get(), DEFAULT_VARCH, this, 0, false, log_file, std::cerr);
@@ -54,14 +56,17 @@ SpikeCosim::SpikeCosim(const std::string &isa_string, uint32_t start_pc,
 
   processor->set_ibex_flags(secure_ibex, icache_en);
 
-  processor->set_mmu_capability(IMPL_MMU_SBARE);
   processor->get_state()->pc = start_pc;
   processor->get_state()->mtvec->write(start_mtvec);
+
+  initial_proc_setup();
 
   if (log) {
     processor->set_debug(true);
     processor->enable_log_commits();
   }
+
+  std::cout << "tdata2 is " << std::hex << processor->get_state()->tdata2->read() << "\n";
 }
 
 // always return nullptr so all memory accesses go via mmio_load/mmio_store
@@ -435,6 +440,19 @@ void SpikeCosim::leave_nmi_mode() {
   processor->put_csr(CSR_MEPC, mstack.epc);
   processor->put_csr(CSR_MCAUSE, mstack.cause);
 #endif
+}
+
+void SpikeCosim::initial_proc_setup() {
+  // TODO Make configurable or add define somewhere
+  processor->get_state()->csrmap[CSR_MARCHID] = std::make_shared<const_csr_t>(processor.get(), CSR_MARCHID, 22);
+  processor->set_mmu_capability(IMPL_MMU_SBARE);
+
+  for (int i = 0;i < processor->TM.count(); ++i) {
+    std::cout << "Doing a TM write\n";
+    processor->TM.tdata2_write(processor.get(), i, 0);
+    processor->TM.tdata1_write(processor.get(), i, 0x28001048);
+    std::cout << "tdata2 read " << std::hex << processor->TM.tdata2_read(processor.get(), i);
+  }
 }
 
 void SpikeCosim::set_mip(uint32_t mip) {
