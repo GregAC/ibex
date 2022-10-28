@@ -12,6 +12,8 @@ class ibex_asm_program_gen extends riscv_asm_program_gen;
   `uvm_object_new
 
   virtual function void gen_program();
+    bit disable_pmp_exception_handler = 0;
+
     default_include_csr_write = {
       MSCRATCH,
       MVENDORID,
@@ -50,7 +52,14 @@ class ibex_asm_program_gen extends riscv_asm_program_gen;
       12'h7c1 // SECURESEED
     };
 
+    `uvm_info(`gfn, "Creating CSR filter", UVM_LOW);
+
     riscv_csr_instr::create_csr_filter(cfg);
+
+    if ($value$plusargs("disable_pmp_exception_handler", disable_pmp_exception_handler) &&
+        disable_pmp_exception_handler) begin
+      cfg.pmp_cfg.enable_pmp_exception_handler = 0;
+    end
 
     super.gen_program();
   endfunction
