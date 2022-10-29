@@ -140,6 +140,7 @@ module ibex_core import ibex_pkg::*; #(
   output logic                         rvfi_ext_nmi,
   output logic                         rvfi_ext_nmi_int,
   output logic                         rvfi_ext_debug_req,
+  output logic                         rvfi_ext_rf_wr_suppress,
   output logic [63:0]                  rvfi_ext_mcycle,
   output logic [31:0]                  rvfi_ext_mhpmcounters [10],
   output logic [31:0]                  rvfi_ext_mhpmcountersh [10],
@@ -1222,6 +1223,7 @@ module ibex_core import ibex_pkg::*; #(
   logic [31:0] rvfi_mem_addr_q;
   logic        rvfi_trap_id;
   logic        rvfi_trap_wb;
+  logic        rvfi_rf_wr_suppress_wb;
   logic [63:0] rvfi_stage_order_d;
   logic        rvfi_id_done;
   logic        rvfi_wb_done;
@@ -1339,6 +1341,12 @@ module ibex_core import ibex_pkg::*; #(
     assign rvfi_trap_wb = id_stage_i.controller_i.exc_req_lsu | new_nmi_int;
     // WB is instantly done in the tracking pipeline when a trap is progress through the pipeline
     assign rvfi_wb_done = rvfi_stage_valid[0] & (instr_done_wb | rvfi_stage_trap[0]);
+
+
+    logic rvfi_stage_rf_wr_suppress_wb_q;
+    always_ff @(posedge clk_i or negedge rst_ni) begin
+
+    end
   end else begin : gen_rvfi_no_wb_stage
     // Without writeback stage first RVFI stage is output stage so simply valid the cycle after
     // instruction leaves ID/EX (and so has retired)
@@ -1658,6 +1666,27 @@ module ibex_core import ibex_pkg::*; #(
       rvfi_rd_addr_q    <= rvfi_rd_addr_d;
       rvfi_rd_wdata_q   <= rvfi_rd_wdata_d;
     end
+  end
+
+  if (WritebackStage) begin : g_rvfi_rf_wr_suppress_wb
+    logic rvfi_stage_rf_wr_suppress_wb;
+    logic rvfi_rf_wr_suppress_wb;
+
+    // Set when RF write from load data is suppressed due to an integrity error
+    assign rvfi_rf_wr_suppress_wb =
+      instr_done_wb & ~rf_we_wb_o & outstanding_load_wb & lsu_load_resp_intg_err;
+
+    always@(posedge clk_i or negedge rst_ni) begin
+      if (!rst_ni) begin
+        rvfi_stage_rf_wr_suppress_wb <= 1'b0;
+      end else if (rvfi_wb_done) begin
+        rvfi_stage_rf_wr_suppress_wb <= rvfi_rf_wr_suppress_wb;
+      end
+    end
+
+    assign rvfi_ext_rf_wr_suppress = rvfi_stage_rf_wr_suppress_wb;
+  end else begin : g_rvfi_no_rf_wr_suppress_wb
+    assign rvfi_ext_rf_wr_suppress = 1'b0;
   end
 
   // rvfi_intr must be set for first instruction that is part of a trap handler.
