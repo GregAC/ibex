@@ -204,9 +204,10 @@ endclass
 class memory_error_seq extends core_base_new_seq#(ibex_mem_intf_seq_item);
   core_ibex_vseq               vseq;
   rand bit                     choose_side;
-  bit                          start_seq = 0; // Use this bit to start any unique sequence once
+  // When set skip error injection if Ibex is currently handling an exception (incluing IRQs)
+  bit                          skip_on_exc = 1'b0;
 
-  rand error_type_e            err_type = PickErr;
+  error_type_e                 err_type = PickErr;
   rand bit                     inject_intg_err;
   // CONTROL_KNOB: Configure the rate between seeing an integrity error versus seeing a bus error.
   int unsigned                 intg_err_pct = 50;
@@ -223,20 +224,26 @@ class memory_error_seq extends core_base_new_seq#(ibex_mem_intf_seq_item);
   endfunction
 
   virtual task send_req();
+    vseq.instr_intf_seq.suppress_error_on_exc = skip_on_exc;
+    vseq.data_intf_seq.suppress_error_on_exc  = skip_on_exc;
+
     `DV_CHECK_MEMBER_RANDOMIZE_FATAL(inject_intg_err)
     // If we expect to see only bus errors, we can enable this assertion. Otherwise
     // integrity errors would cause alerts to trigger.
     `DV_ASSERT_CTRL_REQ("NoAlertsTriggered", intg_err_pct == 0)
+    `uvm_info(`gfn, $sformatf("Injecting error %d %d", err_type, inject_intg_err), UVM_LOW)
     case ({err_type, inject_intg_err})
       {IsideErr, 1'b0}: begin
         vseq.instr_intf_seq.inject_error();
       end
       {DsideErr, 1'b0}: begin
+          `uvm_info(`gfn, "Dside error", UVM_LOW);
         vseq.data_intf_seq.inject_error();
       end
       {PickErr, 1'b0}: begin
         `DV_CHECK_STD_RANDOMIZE_FATAL(choose_side)
         if (choose_side) begin
+          `uvm_info(`gfn, "Iside error", UVM_LOW);
           vseq.instr_intf_seq.inject_error();
         end else begin
           vseq.data_intf_seq.inject_error();
@@ -246,11 +253,13 @@ class memory_error_seq extends core_base_new_seq#(ibex_mem_intf_seq_item);
         vseq.instr_intf_seq.inject_intg_error();
       end
       {DsideErr, 1'b1}: begin
+        `uvm_info(`gfn, "Dside intg error", UVM_LOW);
         vseq.data_intf_seq.inject_intg_error();
       end
       {PickErr, 1'b1}: begin
         `DV_CHECK_STD_RANDOMIZE_FATAL(choose_side)
         if (choose_side) begin
+          `uvm_info(`gfn, "Iside intg error", UVM_LOW);
           vseq.instr_intf_seq.inject_intg_error();
         end else begin
           vseq.data_intf_seq.inject_intg_error();

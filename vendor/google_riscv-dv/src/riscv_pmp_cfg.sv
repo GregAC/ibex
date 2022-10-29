@@ -37,7 +37,7 @@ class riscv_pmp_cfg extends uvm_object;
   // handlers to find the pmpcfg CSR that controls the address region resulting in the exception and
   // change the relevant access bit to 1'b1, allowing forward progress in the code, while also
   // allowing all access restrictions to be enforced.
-  bit enable_pmp_exception_handler = 1'b1;
+  bit enable_pmp_exception_handler = 1'b0;
 
   // Don't generate the usual PMP setup section, instead generate a setup that provides a single
   // region allowing full access to all of memory from both U mode and M mode.

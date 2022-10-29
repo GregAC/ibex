@@ -558,6 +558,7 @@
     +enable_mem_intg_err=0
     +enable_double_fault_detector=0
     +require_signature_addr=1
+    +enable_bad_intg_on_uninit_access=0
   compare_opts:
     compare_final_value_only: 1
 
@@ -565,18 +566,21 @@
   description: >
     Normal random instruction test, but randomly insert memory load/store integrity errors
   iterations: 15
+  timeout_s: 500
   gen_test: riscv_rand_instr_test
   gen_opts: >
     +require_signature_addr=1
-    +instr_cnt=10000
     +randomize_csr=1
     +enable_unaligned_load_store=1
     +suppress_pmp_setup=1
+    +instr_cnt=10000
+    +num_of_sub_program=5
   rtl_test: core_ibex_mem_error_test
   sim_opts: >
     +enable_mem_intg_err=1
     +enable_double_fault_detector=0
     +require_signature_addr=1
+    +enable_bad_intg_on_uninit_access=0
   compare_opts:
     compare_final_value_only: 1
 

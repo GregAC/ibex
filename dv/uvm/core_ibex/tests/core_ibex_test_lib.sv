@@ -373,18 +373,20 @@ class core_ibex_debug_intr_basic_test extends core_ibex_base_test;
   // Task that waits for xRET to be asserted within a certain number of cycles
   virtual task wait_ret(string ret, int timeout);
     cur_run_phase.raise_objection(this);
-    fork
-      begin
-        wait_ret_raw(ret);
-      end
-      begin : ret_timeout
-        clk_vif.wait_clks(timeout);
-        `uvm_fatal(`gfn, $sformatf({"No %0s detected, or incorrect privilege mode switch in ",
-                                   "timeout period of %0d cycles"}, ret, timeout))
-      end
-    join_any
-    // Will only get here if dret successfully detected within timeout period
-    disable fork;
+    fork begin
+      fork
+        begin
+          wait_ret_raw(ret);
+        end
+        begin : ret_timeout
+          clk_vif.wait_clks(timeout);
+          `uvm_fatal(`gfn, $sformatf({"No %0s detected, or incorrect privilege mode switch in ",
+                                     "timeout period of %0d cycles"}, ret, timeout))
+        end
+      join_any
+      // Will only get here if dret successfully detected within timeout period
+      disable fork;
+    end join
     cur_run_phase.drop_objection(this);
   endtask
 
@@ -438,7 +440,9 @@ class core_ibex_directed_test extends core_ibex_debug_intr_basic_test;
           fork
             check_stimulus();
           join_none
+          `uvm_info(`gfn, "Wait for test done", UVM_LOW)
           wait (test_done === 1'b1);
+          `uvm_info(`gfn, "Test is done?", UVM_LOW);
           // disable below can kill processes that are running sequences. As a result they never
           // stop and the simulation never ends. So wait for all sequences to stop before doing the
           // disable.
@@ -1167,6 +1171,9 @@ class core_ibex_mem_error_test extends core_ibex_directed_test;
   `uvm_component_utils(core_ibex_mem_error_test)
   `uvm_component_new
 
+  int illegal_instruction_threshold = 20;
+  int illegal_instruction_exceptions_seen = 0;
+
   virtual task check_stimulus();
     memory_error_seq memory_error_seq_h;
     memory_error_seq_h = memory_error_seq::type_id::create("memory_error_seq_h", this);
@@ -1177,22 +1184,28 @@ class core_ibex_mem_error_test extends core_ibex_directed_test;
     memory_error_seq_h.stimulus_delay_cycles_min = 800; // Interval between injected errors
     memory_error_seq_h.stimulus_delay_cycles_max = 5000;
     memory_error_seq_h.intg_err_pct = cfg.enable_mem_intg_err ? 75 : 0;
+    memory_error_seq_h.skip_on_exc = 1'b1;
     fork
-      begin
-        forever begin
-          memory_error_seq_h.start(env.vseqr);
-          // Wait until we are out of IRQ handler to the inject errors
-          wait_ret("mret", 20000);
-        end
-      end
-      begin
-        forever begin
-          wait_for_core_status(HANDLING_IRQ);
-          // Do not allow error injection while we are handling IRQ
-          memory_error_seq_h.stop();
-        end
-      end
+      run_illegal_instr_watcher();
+      memory_error_seq_h.start(env.vseqr);
     join_none
+  endtask
+
+  task run_illegal_instr_watcher();
+    if (!cfg.enable_mem_intg_err) begin
+      return;
+    end
+
+    forever begin
+      wait_for_core_exception(ibex_pkg::ExcCauseIllegalInsn);
+      `uvm_info(`gfn, "It's an illegal instruction exception!", UVM_LOW);
+      ++illegal_instruction_exceptions_seen;
+    end
+  endtask
+
+  virtual task wait_for_custom_test_done();
+    wait(illegal_instruction_exceptions_seen == illegal_instruction_threshold);
+    `uvm_info(`gfn, "Terminating test early due to illegal instruction threshold reached", UVM_LOW)
   endtask
 
 endclass
