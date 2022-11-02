@@ -21,6 +21,22 @@ interface core_ibex_dut_probe_if(input logic clk);
   ibex_pkg::ctrl_fsm_e     ctrl_fsm_cs;
   logic                    debug_mode;
   logic                    double_fault_seen;
+  logic                    sync_exc_seen;
+  logic                    irq_exc_seen;
+  logic                    csr_save_cause;
+  ibex_pkg::exc_cause_t    exc_cause;
+
+  always @(posedge clk or posedge reset) begin
+    if (reset) begin
+      irq_exc_seen <= 1'b0;
+    end else begin
+      if (ctrl_fsm_cs == ibex_pkg::IRQ_TAKEN) begin
+        irq_exc_seen <= 1'b1;
+      end else if (mret) begin
+        irq_exc_seen <= 1'b0;
+      end
+    end
+  end
 
   clocking dut_cb @(posedge clk);
     output fetch_enable;
@@ -40,6 +56,8 @@ interface core_ibex_dut_probe_if(input logic clk);
     input ctrl_fsm_cs;
     input debug_mode;
     input double_fault_seen;
+    input sync_exc_seen;
+    input irq_exc_seen;
   endclocking
 
   initial begin
