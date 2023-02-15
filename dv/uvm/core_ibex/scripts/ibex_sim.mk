@@ -101,3 +101,11 @@ $(METADATA-DIR)/regr.log.stamp: scripts/collect_results.py $(comp-results)
 	./scripts/collect_results.py \
 	  --dir-metadata $(METADATA-DIR)
 	@touch $@
+
+$(METADATA-DIR)/json_report.stamp: scripts/dvsim_report.py $(REGR-LOG-STAMP) $(MERGE-COV-STAMP)
+	@echo Generating dvsim compatible json report of regression results
+	$(verb)env PYTHONPATH=$(PYTHONPATH) \
+	./scripts/dvsim_report.py \
+	  --dir-metadata $(METADATA-DIR)
+	@touch $@
+
