@@ -195,3 +195,11 @@ void simple_timer_handler(void) {
   increment_timecmp(time_increment);
   time_elapsed++;
 }
+
+void enable_icache(uint32_t enable) {
+  if (enable) {
+    __asm__ volatile("csrsi 0x7c0, 0x1");
+  } else {
+    __asm__ volatile("csrci 0x7c0, 0x1");
+  }
+}

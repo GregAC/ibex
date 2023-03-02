@@ -85,4 +85,11 @@ void timer_disable(void);
  */
 uint64_t get_elapsed_time(void);
 
+/**
+ * Enables/disables the icache
+ *
+ * @param enable if non-zero enables, otherwise disables
+ */
+void enable_icache(uint32_t enable);
+
 #endif
