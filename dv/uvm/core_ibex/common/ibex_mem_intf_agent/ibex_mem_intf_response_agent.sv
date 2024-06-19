@@ -47,6 +47,8 @@ class ibex_mem_intf_response_agent extends uvm_agent;
     end
     driver.cfg = cfg;
     sequencer.cfg = cfg;
+
+    driver.monitor_tick = monitor.monitor_tick;
   endfunction : connect_phase
 
   function void reset();

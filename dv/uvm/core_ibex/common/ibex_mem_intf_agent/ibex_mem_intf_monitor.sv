@@ -10,6 +10,9 @@ class ibex_mem_intf_monitor extends uvm_monitor;
 
   protected virtual ibex_mem_intf vif;
 
+
+  event monitor_tick;
+
   mailbox #(ibex_mem_intf_seq_item)          collect_response_queue;
   uvm_analysis_port#(ibex_mem_intf_seq_item) item_collected_port;
   uvm_analysis_port#(ibex_mem_intf_seq_item) addr_ph_port;
@@ -52,9 +55,18 @@ class ibex_mem_intf_monitor extends uvm_monitor;
 
   virtual protected task collect_address_phase();
     ibex_mem_intf_seq_item trans_collected;
+
+    @(vif.monitor_cb);
+
     forever begin
       trans_collected = ibex_mem_intf_seq_item::type_id::create("trans_collected");
-      while(!(vif.monitor_cb.request && vif.monitor_cb.grant)) vif.wait_clks(1);
+
+      while(!(vif.monitor_cb.request && vif.monitor_cb.grant)) begin
+        -> monitor_tick;
+        `uvm_info(`gfn, "TICK!", UVM_HIGH)
+        @(vif.monitor_cb);
+      end
+
       trans_collected.addr              = vif.monitor_cb.addr;
       trans_collected.be                = vif.monitor_cb.be;
       trans_collected.misaligned_first  = vif.monitor_cb.misaligned_first;
@@ -71,7 +83,10 @@ class ibex_mem_intf_monitor extends uvm_monitor;
       addr_ph_port.write(trans_collected);
       `uvm_info(get_full_name(),"Send through addr_ph_port", UVM_HIGH)
       collect_response_queue.put(trans_collected);
-      vif.wait_clks(1);
+
+      -> monitor_tick;
+        `uvm_info(`gfn, "TICK (after trans collected)!", UVM_HIGH)
+      @(vif.monitor_cb);
     end
   endtask : collect_address_phase
 
@@ -80,8 +95,8 @@ class ibex_mem_intf_monitor extends uvm_monitor;
     forever begin
       collect_response_queue.get(trans_collected);
       do
-        vif.wait_clks(1);
-      while(vif.monitor_cb.rvalid === 0);
+        @(vif.monitor_cb);
+      while(vif.monitor_cb.rvalid === 0 || vif.monitor_cb.spurious_response === 1);
 
       if (trans_collected.read_write == READ) begin
         trans_collected.data = vif.monitor_cb.rdata;

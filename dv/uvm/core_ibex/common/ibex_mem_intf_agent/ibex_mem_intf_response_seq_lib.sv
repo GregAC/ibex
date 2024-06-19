@@ -42,6 +42,7 @@ class ibex_mem_intf_response_seq extends uvm_sequence #(ibex_mem_intf_seq_item);
       bit                  data_was_uninitialized = 1'b0;
 
       p_sequencer.addr_ph_port.get(item);
+      `uvm_info(`gfn, $sformatf("Received addres %x from monitor", item.addr), UVM_HIGH)
       aligned_addr = {item.addr[DATA_WIDTH-1:2], 2'b0};
 
       req = ibex_mem_intf_seq_item::type_id::create("req");
@@ -75,6 +76,7 @@ class ibex_mem_intf_response_seq extends uvm_sequence #(ibex_mem_intf_seq_item);
       }) begin
         `uvm_fatal(`gfn, "Cannot randomize response request")
       end
+
       error_synch = 1'b1;
       enable_error = 1'b0; // Disable after single inserted error.
       aligned_addr = {req.addr[DATA_WIDTH-1:2], 2'b0};

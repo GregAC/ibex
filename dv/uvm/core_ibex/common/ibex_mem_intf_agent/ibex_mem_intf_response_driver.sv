@@ -15,6 +15,15 @@ class ibex_mem_intf_response_driver extends uvm_driver #(ibex_mem_intf_seq_item)
 
   mailbox #(ibex_mem_intf_seq_item) rdata_queue;
 
+  rand int unsigned spurious_response_delay_cycles;
+
+  constraint spurious_response_delay_cycles_c {
+    spurious_response_delay_cycles inside {[cfg.spurious_response_delay_min :
+                                            cfg.spurious_response_delay_max]};
+  }
+
+  event monitor_tick = null;
+
   function void build_phase(uvm_phase phase);
     super.build_phase(phase);
     rdata_queue = new();
@@ -62,11 +71,16 @@ class ibex_mem_intf_response_driver extends uvm_driver #(ibex_mem_intf_seq_item)
 
   virtual protected task get_and_drive();
     wait (cfg.vif.response_driver_cb.reset === 1'b0);
+
+    if (cfg.enable_spurious_response) begin
+      `DV_CHECK_MEMBER_RANDOMIZE_FATAL(spurious_response_delay_cycles)
+    end
+
     fork
       begin
         forever begin
           ibex_mem_intf_seq_item req, req_c;
-          cfg.vif.wait_clks(1);
+          @(cfg.vif.response_driver_cb);
           seq_item_port.get_next_item(req);
           $cast(req_c, req.clone());
           if(~cfg.vif.response_driver_cb.reset) begin
@@ -112,15 +126,66 @@ class ibex_mem_intf_response_driver extends uvm_driver #(ibex_mem_intf_seq_item)
   virtual protected task send_read_data();
     ibex_mem_intf_seq_item tr;
     forever begin
-      cfg.vif.wait_clks(1);
-      cfg.vif.response_driver_cb.rvalid <=  1'b0;
-      cfg.vif.response_driver_cb.rdata  <= 'x;
-      cfg.vif.response_driver_cb.rintg  <= 'x;
-      cfg.vif.response_driver_cb.error  <= 'x;
-      rdata_queue.get(tr);
+      @(cfg.vif.response_driver_cb);
+      cfg.vif.response_driver_cb.rvalid            <= 1'b0;
+      cfg.vif.response_driver_cb.spurious_response <= 1'b0;
+      cfg.vif.response_driver_cb.rdata             <= 'x;
+      cfg.vif.response_driver_cb.rintg             <= 'x;
+      cfg.vif.response_driver_cb.error             <= 'x;
+
+      if (cfg.enable_spurious_response) begin
+        while (1) begin
+          @monitor_tick;
+
+          cfg.vif.response_driver_cb.rvalid            <= 1'b0;
+          cfg.vif.response_driver_cb.spurious_response <= 1'b0;
+          cfg.vif.response_driver_cb.rdata             <= 'x;
+          cfg.vif.response_driver_cb.rintg             <= 'x;
+          cfg.vif.response_driver_cb.error             <= 'x;
+
+          if (rdata_queue.try_get(tr) != 0) begin
+            `uvm_info(`gfn, "Seen response in spin loop", UVM_LOW)
+            break;
+          end
+
+          if (spurious_response_delay_cycles == 0) begin
+            bit error;
+            bit [DATA_WIDTH-1:0] rand_data;
+            bit [INTG_WIDTH-1:0] intg;
+
+            `DV_CHECK_STD_RANDOMIZE_FATAL(error)
+            `DV_CHECK_STD_RANDOMIZE_FATAL(rand_data)
+
+            `uvm_info(`gfn, "Injecting spurious memory response", UVM_HIGH)
+
+            // Provide correct integrity with spurious response to avoid triggering an alert
+            {intg, rand_data} = prim_secded_pkg::prim_secded_inv_39_32_enc(rand_data);
+
+            cfg.vif.response_driver_cb.rvalid            <= 1'b1;
+            cfg.vif.response_driver_cb.spurious_response <= 1'b1;
+            cfg.vif.response_driver_cb.rdata             <= rand_data;
+            cfg.vif.response_driver_cb.rintg             <= intg;
+            cfg.vif.response_driver_cb.error             <= error;
+
+            `DV_CHECK_MEMBER_RANDOMIZE_FATAL(spurious_response_delay_cycles)
+          end else begin
+            spurious_response_delay_cycles = spurious_response_delay_cycles - 1;
+          end
+        end
+      end else begin
+        rdata_queue.get(tr);
+      end
+
+      `uvm_info(`gfn, $sformatf("Got response for addr %x", tr.addr), UVM_HIGH)
+
       if(cfg.vif.response_driver_cb.reset) continue;
-      cfg.vif.wait_clks(tr.rvalid_delay);
+
+      for (int i = 0;i < tr.rvalid_delay; ++i) begin
+        @(cfg.vif.response_driver_cb);
+      end
+
       if(~cfg.vif.response_driver_cb.reset) begin
+        `uvm_info(`gfn, $sformatf("Driving response for addr %x", tr.addr), UVM_HIGH)
         cfg.vif.response_driver_cb.rvalid <= 1'b1;
         cfg.vif.response_driver_cb.error  <= tr.error;
         if (tr.read_write == READ) begin

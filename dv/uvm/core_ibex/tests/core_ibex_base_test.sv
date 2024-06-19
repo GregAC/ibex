@@ -156,6 +156,7 @@ class core_ibex_base_test extends uvm_test;
     imem_cfg.enable_bad_intg_on_uninit_access = 0;
     // By default, enable bad_intg on the Dside (read plusarg to overwrite this behaviour)
     dmem_cfg.enable_bad_intg_on_uninit_access = 1;
+    dmem_cfg.enable_spurious_response = 0;
     void'($value$plusargs("enable_bad_intg_on_uninit_access=%0d",
                           dmem_cfg.enable_bad_intg_on_uninit_access));
     uvm_config_db#(ibex_mem_intf_response_agent_cfg)::
