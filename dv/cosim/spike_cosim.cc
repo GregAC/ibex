@@ -8,6 +8,7 @@
 #include "riscv/devices.h"
 #include "riscv/log_file.h"
 #include "riscv/processor.h"
+#include "riscv/mmu.h"
 #include "riscv/simif.h"
 
 #include <cassert>
@@ -92,7 +93,9 @@ bool SpikeCosim::mmio_load(reg_t addr, size_t len, uint8_t *bytes) {
     // assume it's an iside access and produce an error.
     pending_iside_error = false;
     dut_error = true;
-  } else if (addr < pc || addr >= (pc + 8)) {
+    std::cout << "generating iside error for " << std::hex << addr << std::endl;
+    std::cout << std::dec;
+  } else if (addr < pc || (addr >= (pc + 8) && (pc < 0xfffffff8))) {
     // Spike may attempt to access up to 8-bytes from the PC when fetching, so
     // only check as a dside access when it falls outside that range.
 
@@ -105,6 +108,9 @@ bool SpikeCosim::mmio_load(reg_t addr, size_t len, uint8_t *bytes) {
     dut_error = (check_mem_access(false, addr, len, bytes) != kCheckMemOk);
   }
 
+  std::cout << "mmio_load addr " << std::hex << addr << " bus_error " << bus_error << " dut_error " << dut_error << std::endl;
+  std::cout << std::dec;
+
   return !(bus_error || dut_error);
 }
 
@@ -114,6 +120,8 @@ bool SpikeCosim::mmio_store(reg_t addr, size_t len, const uint8_t *bytes) {
   // produce a memory fault in spike.
   bool dut_error = (check_mem_access(true, addr, len, bytes) != kCheckMemOk);
 
+  std::cout << "mmio_store addr " << std::hex << addr << " bus_error " << bus_error << " dut_error " << dut_error << std::endl;
+  std::cout << std::dec;
   return !(bus_error || dut_error);
 }
 
@@ -411,6 +419,11 @@ bool SpikeCosim::check_sync_trap(uint32_t write_reg,
     return false;
   }
 
+  if ((processor->get_state()->mcause->read() == 0x5) ||
+      (processor->get_state()->mcause->read() == 0x7)) {
+    misaligned_pmp_fixup();
+  }
+
   // If we see an internal NMI, that means we receive an extra memory intf item.
   // Deleting that is necessary since next Load/Store would fail otherwise.
   if (processor->get_state()->mcause->read() == 0xFFFFFFE0) {
@@ -577,11 +590,12 @@ void SpikeCosim::initial_proc_setup(uint32_t start_pc, uint32_t start_mtvec,
   }
 }
 
-void SpikeCosim::set_mip(uint32_t mip) {
-  uint32_t new_mip = mip;
+void SpikeCosim::set_mip(uint32_t pre_mip, uint32_t post_mip) {
+  uint32_t new_mip = pre_mip;
   uint32_t old_mip = processor->get_state()->mip->read();
 
-  processor->get_state()->mip->write_with_mask(0xffffffff, mip);
+  processor->get_state()->mip->write_with_mask(0xffffffff, post_mip);
+  processor->get_state()->mip->write_pre_val(pre_mip);
 
   if (processor->get_state()->debug_mode ||
       (processor->halt_request == processor_t::HR_REGULAR) ||
@@ -616,6 +630,36 @@ void SpikeCosim::early_interrupt_handle() {
             << initial_spike_pc
             << " PC after: " << (processor->get_state()->pc & 0xffffffff);
     errors.emplace_back(err_str.str());
+  }
+}
+
+void SpikeCosim::misaligned_pmp_fixup() {
+  if (pending_dside_accesses.size() != 0) {
+    auto &top_pending_access = pending_dside_accesses.front();
+    auto &top_pending_access_info = top_pending_access.dut_access_info;
+
+    if (top_pending_access_info.misaligned_second &&
+        top_pending_access_info.misaligned_first_saw_error) {
+      mmu_t* mmu = processor->get_mmu();
+
+      if (!mmu->pmp_ok(top_pending_access_info.addr, 4,
+            top_pending_access_info.store ? STORE : LOAD,
+            top_pending_access_info.m_mode_access ? PRV_M : PRV_U)) {
+        std::stringstream err_str;
+        err_str << "Saw second half of a misaligned access which not have been "
+                << "occurred as it does not pass a PMP check, address: "
+                << std::hex << top_pending_access_info.addr;
+        errors.emplace_back(err_str.str());
+      } else {
+        std::cout << "WARNING: Cosim dropping second half of misaligned access "
+                  << "as first half saw an error and second half passed PMP "
+                  << "check, address: "
+                  << std::hex << top_pending_access_info.addr << std::endl;
+        std::cout << std::dec;
+
+        pending_dside_accesses.erase(pending_dside_accesses.begin());
+      }
+    }
   }
 }
 

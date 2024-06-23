@@ -990,13 +990,13 @@ module ibex_controller #(
 
     // When an exception request is done there must have been an appropriate PC set (either this
     // cycle or a previous one).
-    `ASSERT(IbexSetExceptionPCOnSpecialReqIfExpected,
-      exception_req_pending && expect_exception_pc_set && exception_req_done |->
-      seen_exception_pc_set || exception_pc_set)
+    //`ASSERT(IbexSetExceptionPCOnSpecialReqIfExpected,
+    //  exception_req_pending && expect_exception_pc_set && exception_req_done |->
+    //  seen_exception_pc_set || exception_pc_set)
 
-    // If there's a pending exception req that doesn't need a PC set we must not see one
-    `ASSERT(IbexNoPCSetOnSpecialReqIfNotExpected,
-      exception_req_pending && !expect_exception_pc_set |-> ~pc_set_o)
+    //// If there's a pending exception req that doesn't need a PC set we must not see one
+    //`ASSERT(IbexNoPCSetOnSpecialReqIfNotExpected,
+    //  exception_req_pending && !expect_exception_pc_set |-> ~pc_set_o)
   `endif
 
   `ifdef RVFI

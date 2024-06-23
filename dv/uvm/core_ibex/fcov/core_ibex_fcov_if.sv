@@ -760,7 +760,8 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
       // Cannot have a memory stall when we see an LS exception unless it is a load or store
       // instruction
       illegal_bins mem_stall_illegal =
-        (!binsof(cp_id_instr_category) intersect {InstrCategoryLoad, InstrCategoryStore} &&
+        (!binsof(cp_id_instr_category) intersect {InstrCategoryLoad, InstrCategoryStore,
+                                                  InstrCategoryFetchError} &&
          binsof(cp_stall_type_id) intersect {IdStallTypeMem}) with
         (cp_ls_pmp_exception == 1'b1 || cp_ls_error_exception == 1'b1);
 
