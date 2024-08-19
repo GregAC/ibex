@@ -217,17 +217,17 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
     id_stall_type = IdStallTypeNone;
 
     if (id_stage_i.instr_valid_i) begin
+      if (id_stage_i.stall_multdiv || id_stage_i.stall_branch ||
+          id_stage_i.stall_jump) begin
+        id_stall_type = IdStallTypeInstr;
+      end
+
       if (id_stage_i.stall_mem) begin
         id_stall_type = IdStallTypeMem;
       end
 
       if (id_stage_i.stall_ld_hz) begin
         id_stall_type = IdStallTypeLdHz;
-      end
-
-      if (id_stage_i.stall_multdiv || id_stage_i.stall_branch ||
-          id_stage_i.stall_jump) begin
-        id_stall_type = IdStallTypeInstr;
       end
     end
   end
@@ -699,6 +699,8 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
     stall_cross: cross cp_id_instr_category, cp_stall_type_id {
       illegal_bins illegal =
         // Only Div, Mul, Branch and Jump instructions can see an instruction stall
+        // TODO: Cannot see Jump/FENCE.I instr stall when we don't have a branch target ALU, need to
+        // adjust illegal bins based upon Ibex configuration
         (!binsof(cp_id_instr_category) intersect {InstrCategoryDiv, InstrCategoryMul,
                                                  InstrCategoryBranch, InstrCategoryJump,
                                                  InstrCategoryFenceI} &&
@@ -729,7 +731,14 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
       illegal_bins illegal = (!binsof(cp_id_instr_category) intersect {InstrCategoryNone} &&
         binsof(cp_id_stage_state) intersect {PipeStageEmpty}) ||
       (binsof(cp_id_instr_category) intersect {InstrCategoryNone} &&
-        !binsof(cp_id_stage_state) intersect {PipeStageEmpty});
+        !binsof(cp_id_stage_state) intersect {PipeStageEmpty}) ||
+      (binsof(cp_if_stage_state) intersect {IFStageEmptyAndFetching, IFStageEmptyAndIdle}} &&
+        binsof(cp_id_stage_state) intersect {PipeStageFullAndUnstalled}) ||
+      (binsof(cp_id_stage_state) intersect {PipeStageFullAndUnstalled} &&
+        binsof(cp_id_instr_category) intersect {InstrCategoryEBreakDbg, InstrCategoryEBreakExc,
+          InstrCategoryECall, InstrCategoryMRet, InstrCategoryDRet, InstrCategoryWFI,
+          InstrCategoryFetchError, InstrCategoryCompressedIllegal, InstrCategoryUncompressedIllegal, 
+          InstrCategoryCSRIllegal, InstrCategoryPrivIllegal, InstrCategoryOtherIllegal})
     }
 
     interrupt_taken_instr_cross: cross cp_nmi_taken, instr_unstalled_last,
@@ -741,36 +750,39 @@ interface core_ibex_fcov_if import ibex_pkg::*; (
       cp_id_instr_category_last;
     pipe_flush_instr_cross: cross cp_pipe_flush, instr_unstalled, cp_id_instr_category;
 
-    exception_stall_instr_cross: cross cp_ls_pmp_exception, cp_ls_error_exception,
-      cp_id_instr_category, cp_stall_type_id, instr_unstalled, cp_irq_pending, cp_debug_req {
-      illegal_bins illegal =
-        // Only Div, Mul, Branch and Jump instructions can see an instruction stall
-        (!binsof(cp_id_instr_category) intersect {InstrCategoryDiv, InstrCategoryMul,
-                                                 InstrCategoryBranch, InstrCategoryJump,
-                                                 InstrCategoryFenceI} &&
-         binsof(cp_stall_type_id) intersect {IdStallTypeInstr})
-    ||
-        // Only ALU, Mul, Div, Branch, Jump, Load, Store and CSR Access can see a load hazard stall
-        (!binsof(cp_id_instr_category) intersect {InstrCategoryALU, InstrCategoryMul,
-                                                 InstrCategoryDiv, InstrCategoryBranch,
-                                                 InstrCategoryJump, InstrCategoryLoad,
-                                                 InstrCategoryStore, InstrCategoryCSRAccess} &&
-         binsof(cp_stall_type_id) intersect {IdStallTypeLdHz});
+    //exception_stall_instr_cross: cross cp_ls_pmp_exception, cp_ls_error_exception,
+    //  cp_id_instr_category, cp_stall_type_id, instr_unstalled, cp_irq_pending, cp_debug_req {
+    //  illegal_bins illegal =
+    //    // Only Div, Mul, Branch and Jump instructions can see an instruction stall
+    //    (!binsof(cp_id_instr_category) intersect {InstrCategoryDiv, InstrCategoryMul,
+    //                                             InstrCategoryBranch, InstrCategoryJump,
+    //                                             InstrCategoryFenceI} &&
+    //     binsof(cp_stall_type_id) intersect {IdStallTypeInstr})
+    //||
+    //    // Only ALU, Mul, Div, Branch, Jump, Load, Store and CSR Access can see a load hazard stall
+    //    (!binsof(cp_id_instr_category) intersect {InstrCategoryALU, InstrCategoryMul,
+    //                                             InstrCategoryDiv, InstrCategoryBranch,
+    //                                             InstrCategoryJump, InstrCategoryLoad,
+    //                                             InstrCategoryStore, InstrCategoryCSRAccess} &&
+    //     binsof(cp_stall_type_id) intersect {IdStallTypeLdHz});
 
-      // Cannot have a memory stall when we see an LS exception unless it is a load or store
-      // instruction or a fetch error (the raw instruction decode can still indicate a load or store
-      // which produces a stall, though won't cause any load or store to occur due to the fetch
-      // error).
-      illegal_bins mem_stall_illegal =
-        (!binsof(cp_id_instr_category) intersect {InstrCategoryLoad, InstrCategoryStore,
-                                                  InstrCategoryFetchError} &&
-         binsof(cp_stall_type_id) intersect {IdStallTypeMem}) with
-        (cp_ls_pmp_exception == 1'b1 || cp_ls_error_exception == 1'b1);
+    //  // Cannot have a memory stall when we see an LS exception unless it is a load or store
+    //  // instruction or a fetch error (the raw instruction decode can still indicate a load or store
+    //  // which produces a stall, though won't cause any load or store to occur due to the fetch
+    //  // error).
+    //  illegal_bins mem_stall_illegal =
+    //    (!binsof(cp_id_instr_category) intersect {InstrCategoryLoad, InstrCategoryStore,
+    //                                              InstrCategoryFetchError} &&
+    //     binsof(cp_stall_type_id) intersect {IdStallTypeMem}) with
+    //    (cp_ls_pmp_exception == 1'b1 || cp_ls_error_exception == 1'b1);
 
-      // When pipeline has unstalled stall type will always be none
-      illegal_bins unstalled_illegal =
-        !binsof(cp_stall_type_id) intersect {IdStallTypeNone} with (instr_unstalled == 1'b1);
-    }
+    //  // When pipeline has unstalled stall type will always be none
+    //  illegal_bins unstalled_illegal =
+    //    !binsof(cp_stall_type_id) intersect {IdStallTypeNone} with (instr_unstalled == 1'b1);
+    //}
+
+    exception_instr_cross: cross  cp_ls_error_exception, cp_id_instr_category, cp_irq_pending,
+      cp_debug_req;
 
     csr_read_only_priv_cross: cross cp_csr_read_only, cp_priv_mode_id;
     csr_write_priv_cross: cross cp_csr_write, cp_priv_mode_id;
